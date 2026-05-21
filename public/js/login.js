@@ -1,4 +1,4 @@
-import { api } from '/js/api.js';
+import { api, escapeHtml } from '/js/api.js';
 
 // Déjà connecté ? -> dashboard
 api.get('/me').then(() => location.href = '/dashboard.html').catch(() => {});
@@ -17,7 +17,7 @@ const savedName = localStorage.getItem('userName') || '';
     const { techniciens } = await api.get('/techniciens');
     if (techniciens && techniciens.length) {
       select.innerHTML = '<option value="">— Choisir —</option>' +
-        techniciens.map(n => `<option${n === savedName ? ' selected' : ''}>${n}</option>`).join('');
+        techniciens.map(n => `<option${n === savedName ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
       select.style.display = 'block';
       nameInput.style.display = 'none';
     } else {
