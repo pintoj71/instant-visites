@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3d2418"/>
+      <stop offset="0.6" stop-color="#7a2f2a"/>
+      <stop offset="1" stop-color="#c2622e"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Maison -->
+  <path d="M256 104 L408 232 L376 232 L376 392 L136 392 L136 232 L104 232 Z"
+        fill="#f3ece1" opacity="0.96"/>
+  <!-- Flamme -->
+  <path d="M256 196
+           c34 30 50 56 50 86
+           c0 34 -23 58 -50 58
+           c-27 0 -50 -24 -50 -58
+           c0 -16 7 -28 18 -40
+           c2 18 12 26 20 28
+           c-8 -22 -2 -46 12 -74 Z"
+        fill="#c2622e"/>
+  <path d="M256 246
+           c16 16 24 30 24 46
+           c0 18 -11 30 -24 30
+           c-13 0 -24 -12 -24 -30
+           c0 -10 4 -18 11 -25 Z"
+        fill="#e6a417"/>
+</svg>

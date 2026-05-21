@@ -1,0 +1,17 @@
+{
+  "name": "INSTANT BY PINTO — Visites techniques",
+  "short_name": "Visites IBP",
+  "description": "Visites techniques avant installation (étude de faisabilité) pour INSTANT BY PINTO",
+  "start_url": "/dashboard.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#3d2418",
+  "theme_color": "#3d2418",
+  "lang": "fr",
+  "scope": "/",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Générer un PIN hashé — INSTANT BY PINTO</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>Générer le hash d'un PIN</h1>
+    <p class="muted">Saisissez le code PIN d'un technicien. Copiez le hash obtenu dans la colonne <strong>PIN</strong> de la table <strong>Techniciens</strong> (Airtable). Cochez <strong>Actif</strong>.</p>
+    <label>Code PIN</label>
+    <input type="text" id="pin" inputmode="numeric" placeholder="ex: 4827" autocomplete="off">
+    <label>Hash SHA-256 (à coller dans Airtable)</label>
+    <input type="text" id="hash" readonly placeholder="...">
+    <button class="btn" id="copyBtn" style="margin-top:10px;">Copier le hash</button>
+    <p class="muted" id="msg" style="margin-top:8px;"></p>
+  </div>
+</main>
+<script type="module" src="/outils/pin-hash.js"></script>
+</body>
+</html>

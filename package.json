@@ -1,0 +1,17 @@
+{
+  "name": "instant-visites",
+  "version": "1.0.0",
+  "description": "App visites techniques avant installation - INSTANT BY PINTO",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "deploy": "netlify deploy --prod"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}

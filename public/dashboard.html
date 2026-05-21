@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3d2418">
+<title>Mes visites — INSTANT BY PINTO</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header class="app-header">
+  <div class="logo">🏠🔥 INSTANT BY PINTO</div>
+  <div class="spacer"></div>
+  <div class="user" id="userName"></div>
+  <button id="logoutBtn">Déconnexion</button>
+</header>
+
+<main>
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <h1 style="margin:0;flex:1;">Visites techniques</h1>
+      <a class="btn" href="/visite.html">+ Nouvelle visite</a>
+    </div>
+    <div class="tabs" style="margin-top:12px;">
+      <button data-when="today" class="active">Aujourd'hui</button>
+      <button data-when="week">Cette semaine</button>
+      <button data-when="all">Toutes</button>
+    </div>
+    <input type="search" id="search" placeholder="Rechercher une visite (client, ville, type...)" autocomplete="off">
+    <div id="list" class="visite-list" style="margin-top:12px;"></div>
+  </div>
+</main>
+
+<div class="install-banner" id="installBanner">
+  <span class="text">💡 Installez l'app sur votre écran d'accueil pour un accès rapide hors-ligne</span>
+  <button id="installBtn">Installer</button>
+  <button class="close" id="installClose">×</button>
+</div>
+
+<script type="module" src="/js/dashboard.js"></script>
+</body>
+</html>
