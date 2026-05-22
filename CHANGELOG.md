@@ -6,6 +6,11 @@ versionnage [SemVer](https://semver.org/lang/fr/).
 
 ## [1.0.1] - 2026-05-21
 
+### Ajouté
+- Icônes PWA `icon-192.png` et `icon-512.png` générées depuis `icon.svg`
+  (référencées par le manifest et le Service Worker, `purpose: any maskable`).
+  La PWA dispose désormais d'icônes PNG pour l'installation. (`public/icons/`)
+
 ### Corrigé
 - **PWA / hors-ligne** : le pré-cache du Service Worker utilisait `cache.addAll`
   (atomique) — un seul asset manquant (les icônes PNG `icon-192`/`icon-512` pas
