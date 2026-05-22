@@ -1,6 +1,6 @@
 // Service Worker — cache-first pour les assets, network-first pour les APIs.
 // IMPORTANT : bumper VERSION à chaque modif visible pour forcer la mise à jour.
-const VERSION = 'v1.0.0';
+const VERSION = 'v1.0.1';
 const CACHE = `instant-visites-${VERSION}`;
 const ASSETS = [
   '/',
@@ -23,7 +23,11 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {})));
+  // Cache item par item (pas addAll) : un asset manquant (ex: icônes PNG non
+  // encore générées) ne doit PAS faire échouer tout le pré-cache offline.
+  e.waitUntil(
+    caches.open(CACHE).then(c => Promise.allSettled(ASSETS.map(a => c.add(a))))
+  );
   self.skipWaiting();
 });
 
@@ -52,7 +56,12 @@ self.addEventListener('fetch', (e) => {
             caches.open(CACHE).then(c => c.put(e.request, clone));
           }
           return res;
-        }).catch(() => caches.match('/dashboard.html'));
+        }).catch(() => {
+          // Hors-ligne et non caché : renvoyer l'app shell seulement pour une
+          // navigation (sinon on servirait du HTML à la place d'un JS/CSS/image).
+          if (e.request.mode === 'navigate') return caches.match('/dashboard.html');
+          return Response.error();
+        });
       })
     );
   }
