@@ -149,6 +149,59 @@ export async function generatePdf(payload) {
   textBlock('Recommandations', payload.recommandations);
   if (payload.gps) { doc.setFontSize(8).setTextColor(...COL.grey); doc.text(`Position GPS : ${payload.gps.lat.toFixed(5)}, ${payload.gps.lng.toFixed(5)}`, M, y); y += 5; }
 
+  // ===== Preparation du chantier (fil conducteur) =====
+  const ch = payload.chantier || {};
+  const chMeta = [
+    ch.statut && `Statut chantier : ${ch.statut}`,
+    ch.datePose && `Pose prevue : ${fmtFR(ch.datePose)}`,
+    ch.equipe && `Equipe : ${ch.equipe}`,
+    ch.duree && `Duree estimee : ${ch.duree}`
+  ].filter(Boolean);
+  const chMateriel = (ch.materiel || []).filter(m => (m.designation || '').trim());
+  const chTaches = (ch.taches || []).filter(t => (t.label || '').trim());
+  if (chMeta.length || chMateriel.length || chTaches.length) {
+    ensure(18);
+    y += 2;
+    doc.setFillColor(...COL.marron);
+    doc.roundedRect(M, y, CW, 8, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255).setFont('helvetica', 'bold').setFontSize(10.5);
+    doc.text('PREPARATION DU CHANTIER A VENIR', M + 4, y + 5.5);
+    y += 12;
+    if (chMeta.length) {
+      doc.setTextColor(...COL.dark).setFont('helvetica', 'normal').setFontSize(9);
+      const w = doc.splitTextToSize(chMeta.join('   |   '), CW);
+      w.forEach(line => { ensure(5); doc.text(line, M, y); y += 4.6; });
+      y += 1;
+    }
+    if (chMateriel.length) {
+      ensure(14);
+      doc.autoTable({
+        startY: y,
+        head: [['Materiel a prevoir / commander', 'Qte', 'Note']],
+        body: chMateriel.map(m => [String(m.designation), String(m.quantite || ''), String(m.note || '')]),
+        theme: 'grid',
+        headStyles: { fillColor: COL.bordeaux, textColor: 255, fontSize: 9, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 8.5, textColor: COL.dark, cellPadding: 1.6 },
+        alternateRowStyles: { fillColor: [250, 246, 240] },
+        columnStyles: { 0: { cellWidth: CW - 68, fontStyle: 'bold', textColor: COL.marron }, 1: { cellWidth: 16, halign: 'center' }, 2: { cellWidth: 52 } },
+        margin: { left: M, right: M }
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
+    if (chTaches.length) {
+      ensure(10);
+      doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(...COL.bordeaux);
+      doc.text('Travaux prealables a lever avant la pose', M, y); y += 5;
+      doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(...COL.dark);
+      chTaches.forEach(t => {
+        const mark = t.done ? '[X] ' : '[  ] ';
+        const w = doc.splitTextToSize(mark + String(t.label), CW - 2);
+        w.forEach((line, idx) => { ensure(5); doc.text(line, M + (idx ? 6 : 0), y); y += 4.6; });
+      });
+      y += 2;
+    }
+  }
+
   // ===== Photos =====
   const photos = (payload.photos || []).filter(p => p.dataUrl);
   if (photos.length) {

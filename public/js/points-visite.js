@@ -175,11 +175,28 @@ export function blocksForType(type) {
   return (SECTIONS_BY_TYPE[type] || []).map(id => TYPE_BLOCKS[id]).filter(Boolean);
 }
 
-// Index { key -> label } de TOUS les champs (pour le PDF / ré-affichage)
-export function buildLabelIndex() {
-  const idx = {};
-  const add = (fields) => fields.forEach(f => { idx[f.key] = f.label; });
-  COMMON_SECTIONS.forEach(s => add(s.fields));
-  Object.values(TYPE_BLOCKS).forEach(b => add(b.fields));
-  return idx;
+// ============================================================================
+// FIL CONDUCTEUR DU CHANTIER À VENIR
+// La visite ne s'arrête plus au constat : elle prépare et suit la pose.
+// ============================================================================
+
+// ---- Pipeline de suivi du chantier (= options Airtable "Statut chantier") ----
+export const CHANTIER_STATUTS = ['À planifier', 'Devis', 'Planifié', 'Posé', 'SAV', 'Annulé'];
+
+// ---- Matériel type suggéré par projet : base de départ ÉDITABLE (le tech ajuste) ----
+export const MATERIEL_SUGGESTIONS = {
+  'Poêle ou insert bois': ['Appareil (poêle / insert) bois', 'Tubage / conduit inox', 'Plaque de sol / protection', "Kit arrivée d'air comburant", 'Sortie de toit / chapeau'],
+  'Poêle ou insert granulés': ['Appareil granulés', 'Tubage / conduit inox Ø80-100', 'Kit ventouse (si étanche)', 'Plaque de sol / protection', 'Câble alimentation dédié'],
+  'Chaudière bois': ['Chaudière bois', 'Ballon tampon', 'Tubage / conduit', "Vase d'expansion", 'Circulateur + régulation'],
+  'Chaudière granulés': ['Chaudière granulés', 'Silo / réserve granulés', 'Vis sans fin / aspiration', 'Ballon tampon', 'Tubage / conduit + régulation'],
+  'Chaudière gaz': ['Chaudière gaz', 'Kit ventouse / conduit', 'Alimentation gaz', "Vase d'expansion", 'Thermostat / régulation'],
+  'PAC Air/Eau': ['Unité extérieure', 'Module hydraulique intérieur', 'Liaisons frigorifiques', 'Support unité extérieure', 'Évacuation des condensats', 'Câble alim + protection'],
+  'PAC Eau/Eau': ['PAC Eau/Eau', 'Captage / forage', 'Échangeur', 'Circulateurs', 'Ballon tampon + régulation'],
+  'PAC Air/Air': ['Unité extérieure', 'Unités intérieures (splits)', 'Liaisons frigorifiques', 'Supports', 'Évacuation des condensats', 'Câble alim'],
+  'Chauffe-eau thermodynamique': ['Ballon thermodynamique', 'Gaines air (si gainé)', 'Évacuation des condensats', 'Groupe de sécurité', 'Câble alimentation']
+};
+
+// Renvoie la liste de matériel suggérée pour un type (vide si inconnu)
+export function materielFor(type) {
+  return (MATERIEL_SUGGESTIONS[type] || []).slice();
 }

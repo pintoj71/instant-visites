@@ -81,6 +81,50 @@
     <div class="with-voice"><textarea data-key="recommandations" data-voice="1" rows="3"></textarea></div>
   </div>
 
+  <!-- Préparation du chantier (fil conducteur) -->
+  <div class="card">
+    <h2>🏗️ Préparation du chantier</h2>
+    <p class="muted">Transforme la visite en feuille de route pour la pose à venir.</p>
+    <div class="grid-2" style="margin-top:8px;">
+      <div class="field">
+        <label>Statut chantier</label>
+        <select data-key="statutChantier">
+          <option value="">— Non démarré —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Date de pose prévue</label>
+        <input type="date" data-key="datePosePrevue">
+      </div>
+      <div class="field">
+        <label>Équipe de pose</label>
+        <input type="text" data-key="equipePose" placeholder="ex: Jonathan + Mickael">
+      </div>
+      <div class="field">
+        <label>Durée estimée</label>
+        <input type="text" data-key="poseDuree" placeholder="ex: 2 jours">
+      </div>
+    </div>
+
+    <div class="subblock">
+      <div class="subblock-head">
+        <label>Matériel à prévoir / commander</label>
+        <button class="btn ghost small" type="button" id="materielSuggest">Proposer le matériel type</button>
+      </div>
+      <div id="materielList"></div>
+      <button class="btn ghost small" type="button" id="materielAdd" style="margin-top:6px;">+ Ajouter une ligne</button>
+    </div>
+
+    <div class="subblock">
+      <div class="subblock-head">
+        <label>Travaux préalables à lever avant la pose</label>
+      </div>
+      <p class="muted">Checklist des points bloquants à traiter avant l'intervention.</p>
+      <div id="tachesList"></div>
+      <button class="btn ghost small" type="button" id="tacheAdd" style="margin-top:6px;">+ Ajouter une tâche</button>
+    </div>
+  </div>
+
   <!-- Signatures -->
   <div class="card">
     <h2>✍️ Signatures & date</h2>

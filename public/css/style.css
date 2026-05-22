@@ -204,6 +204,14 @@ label {
 .badge.faisable { background: #e2efd9; color: #2f5320; }
 .badge.conditions { background: #fdf0d6; color: #8a6212; }
 .badge.non { background: #fbe1de; color: #8a201a; }
+.badges { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.badge.chantier { background: #efe4d4; color: var(--primary-2); }
+.badge.chantier.planifier { background: #fdf3d2; color: #8a6212; }
+.badge.chantier.devis { background: #dce9f7; color: #1f4f80; }
+.badge.chantier.planifie { background: #d6eef0; color: #155e63; }
+.badge.chantier.pose { background: #e2efd9; color: #2f5320; }
+.badge.chantier.sav { background: #fbe6d6; color: #8a4a14; }
+.badge.chantier.annule { background: #ece8e3; color: #6b6157; }
 
 /* Tabs */
 .tabs { display: flex; gap: 4px; margin-bottom: 12px; background: #fff; padding: 4px; border-radius: 8px; box-shadow: var(--shadow); border: 1px solid var(--border); }
@@ -322,6 +330,23 @@ details.section .section-body { padding: 12px 14px; }
 .install-banner .text { flex: 1; font-size: 13px; }
 .install-banner button { background: #fff; color: var(--primary); border: none; padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 12px; cursor: pointer; }
 .install-banner .close { background: transparent; color: #fff; }
+
+/* Préparation du chantier */
+.subblock { margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.subblock-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.subblock-head label { font-weight: 700; }
+.line-item { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.line-item input[type="text"] { flex: 1; min-width: 0; }
+.line-item .qty { width: 64px; flex: none; text-align: center; }
+.line-item .del {
+  flex: none; border: none; background: transparent; color: var(--danger);
+  font-size: 18px; line-height: 1; padding: 6px 8px; cursor: pointer; border-radius: 6px;
+}
+.line-item .del:hover { background: rgba(192,57,43,0.10); }
+.tache-item { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.tache-item input[type="checkbox"] { width: 20px; height: 20px; flex: none; accent-color: var(--ok); }
+.tache-item input[type="text"] { flex: 1; min-width: 0; }
+.tache-item.done input[type="text"] { text-decoration: line-through; color: var(--muted); }
 
 /* Responsive */
 @media (max-width: 600px) {

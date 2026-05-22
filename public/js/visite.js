@@ -1,8 +1,8 @@
-import { api, toast, escapeHtml } from '/js/api.js';
+import { api, toast, escapeHtml, getOptionName } from '/js/api.js';
 import { initSignaturePad } from '/js/signature.js';
 import { generatePdf } from '/js/pdf-generator.js';
 import {
-  TYPES_PROJET, COMMON_SECTIONS, blocksForType, buildLabelIndex
+  TYPES_PROJET, COMMON_SECTIONS, blocksForType, CHANTIER_STATUTS, materielFor
 } from '/js/points-visite.js';
 
 const params = new URLSearchParams(location.search);
@@ -10,12 +10,13 @@ const state = {
   id: params.get('id') || null,
   newPhotos: [],        // { dataUrl, label }
   existingPhotos: [],    // { url|dataUrl, label, filename }
+  materiel: [],          // { designation, quantite, note }
+  taches: [],            // { label, done }
   gps: null,
   userName: '',
   quotaWarned: false
 };
 let storageKey = `visite:${state.id || 'new'}`;
-const LABELS = buildLabelIndex();
 
 // ===== Auth =====
 const meReady = api.get('/me')
@@ -193,6 +194,58 @@ async function addPhotos(files) {
   scheduleSave();
 }
 
+// ===== Matériel à prévoir =====
+function renderMateriel() {
+  const list = document.getElementById('materielList');
+  if (!list) return;
+  list.innerHTML = state.materiel.map((m, i) => `
+    <div class="line-item">
+      <input type="text" data-mat="${i}" data-f="designation" placeholder="Désignation" value="${escapeHtml(m.designation || '')}">
+      <input type="text" class="qty" data-mat="${i}" data-f="quantite" placeholder="Qté" value="${escapeHtml(m.quantite || '')}">
+      <input type="text" data-mat="${i}" data-f="note" placeholder="Note" value="${escapeHtml(m.note || '')}">
+      <button type="button" class="del" data-matdel="${i}" title="Supprimer">×</button>
+    </div>`).join('');
+  list.querySelectorAll('input[data-mat]').forEach(inp => {
+    inp.addEventListener('input', () => { state.materiel[+inp.dataset.mat][inp.dataset.f] = inp.value; scheduleSave(); });
+  });
+  list.querySelectorAll('button[data-matdel]').forEach(b => {
+    b.addEventListener('click', () => { state.materiel.splice(+b.dataset.matdel, 1); renderMateriel(); scheduleSave(); });
+  });
+}
+
+function suggestMateriel() {
+  const type = document.getElementById('typeProjet').value;
+  const sugg = materielFor(type);
+  if (!sugg.length) { toast('Aucune suggestion pour ce type', 'danger'); return; }
+  const existing = new Set(state.materiel.map(m => (m.designation || '').trim().toLowerCase()));
+  let added = 0;
+  sugg.forEach(d => { if (!existing.has(d.toLowerCase())) { state.materiel.push({ designation: d, quantite: '1', note: '' }); added++; } });
+  renderMateriel();
+  scheduleSave();
+  toast(added ? `${added} ligne(s) ajoutée(s)` : 'Déjà présent', added ? 'success' : '');
+}
+
+// ===== Travaux préalables (checklist) =====
+function renderTaches() {
+  const list = document.getElementById('tachesList');
+  if (!list) return;
+  list.innerHTML = state.taches.map((t, i) => `
+    <div class="tache-item${t.done ? ' done' : ''}">
+      <input type="checkbox" data-tdone="${i}"${t.done ? ' checked' : ''}>
+      <input type="text" data-tlabel="${i}" placeholder="Travail / point à lever" value="${escapeHtml(t.label || '')}">
+      <button type="button" class="del" data-tdel="${i}" title="Supprimer">×</button>
+    </div>`).join('');
+  list.querySelectorAll('input[data-tdone]').forEach(cb => {
+    cb.addEventListener('change', () => { state.taches[+cb.dataset.tdone].done = cb.checked; renderTaches(); scheduleSave(); });
+  });
+  list.querySelectorAll('input[data-tlabel]').forEach(inp => {
+    inp.addEventListener('input', () => { state.taches[+inp.dataset.tlabel].label = inp.value; scheduleSave(); });
+  });
+  list.querySelectorAll('button[data-tdel]').forEach(b => {
+    b.addEventListener('click', () => { state.taches.splice(+b.dataset.tdel, 1); renderTaches(); scheduleSave(); });
+  });
+}
+
 // ===== Sauvegarde locale (autosave) =====
 let saveTimer;
 function snapshot() {
@@ -202,6 +255,8 @@ function snapshot() {
     sigTech: sigTech.isEmpty() ? '' : sigTech.toDataURL(),
     sigClient: sigClient.isEmpty() ? '' : sigClient.toDataURL(),
     newPhotos: state.newPhotos,
+    materiel: state.materiel,
+    taches: state.taches,
     gps: state.gps
   };
 }
@@ -295,9 +350,14 @@ function buildFields(statut) {
     'Faisabilité': d.faisabilite || '',
     'Estimation budgétaire': d.estimation || '',
     'Délai indicatif': d.delai || '',
+    'Statut chantier': d.statutChantier || '',
+    'Date pose prévue': d.datePosePrevue || '',
+    'Équipe pose': d.equipePose || '',
     'Réponses (JSON)': JSON.stringify({
       answers: d,
       photoLabels: state.newPhotos.map(p => p.label).filter(Boolean),
+      materiel: state.materiel.filter(m => (m.designation || '').trim()),
+      taches: state.taches.filter(t => (t.label || '').trim()),
       gps: state.gps
     }),
     'Signature technicien': sigTech.isEmpty() ? '' : sigTech.toDataURL(),
@@ -333,6 +393,14 @@ function buildPdfPayload() {
     delai: d.delai || '',
     reserves: d.reserves || '',
     recommandations: d.recommandations || '',
+    chantier: {
+      statut: d.statutChantier || '',
+      datePose: d.datePosePrevue || '',
+      equipe: d.equipePose || '',
+      duree: d.poseDuree || '',
+      materiel: state.materiel.filter(m => (m.designation || '').trim()),
+      taches: state.taches.filter(t => (t.label || '').trim())
+    },
     gps: state.gps,
     photos,
     sigTech: sigTech.isEmpty() ? '' : sigTech.toDataURL(),
@@ -474,6 +542,11 @@ let sigTech, sigClient;
     '<option value="">— Choisir le type d\'installation —</option>' +
     TYPES_PROJET.map(t => `<option>${escapeHtml(t)}</option>`).join('');
 
+  // Select statut chantier
+  document.querySelector('[data-key="statutChantier"]').innerHTML =
+    '<option value="">— Non démarré —</option>' +
+    CHANTIER_STATUTS.map(s => `<option>${escapeHtml(s)}</option>`).join('');
+
   renderCommon();
   attachVoiceButtons(document); // pour les textareas statiques (réserves, recommandations)
 
@@ -483,22 +556,32 @@ let sigTech, sigClient;
 
   // Données initiales : Airtable (?id) sinon brouillon local
   let initial = null;
+  let colOverride = null;
   if (state.id) {
     try {
       const { visite } = await api.get(`/visites/${state.id}`);
       const f = visite.fields || {};
-      let answers = {};
-      try { answers = JSON.parse(f['Réponses (JSON)'] || '{}').answers || {}; } catch {}
-      initial = { data: answers, sigTech: f['Signature technicien'], sigClient: f['Signature client'] };
+      let parsed = {};
+      try { parsed = JSON.parse(f['Réponses (JSON)'] || '{}'); } catch {}
+      initial = { data: parsed.answers || {}, sigTech: f['Signature technicien'], sigClient: f['Signature client'] };
       // photos existantes (Airtable) en lecture seule
       (f['Photos'] || []).forEach(att => state.existingPhotos.push({ url: att.url, filename: att.filename, label: att.filename }));
-      const g = (() => { try { return JSON.parse(f['Réponses (JSON)'] || '{}').gps; } catch { return null; } })();
-      if (g) state.gps = g;
+      state.materiel = parsed.materiel || [];
+      state.taches = parsed.taches || [];
+      if (parsed.gps) state.gps = parsed.gps;
+      // Les colonnes Airtable (modifiables côté Airtable) font autorité au ré-affichage
+      colOverride = {
+        statutChantier: getOptionName(f['Statut chantier']),
+        datePosePrevue: f['Date pose prévue'] || '',
+        equipePose: f['Équipe pose'] || ''
+      };
     } catch (e) { toast('Visite introuvable', 'danger'); }
   } else {
     try { initial = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
     if (initial) {
       state.newPhotos = initial.newPhotos || [];
+      state.materiel = initial.materiel || [];
+      state.taches = initial.taches || [];
       state.gps = initial.gps || null;
     }
   }
@@ -513,10 +596,19 @@ let sigTech, sigClient;
   setVal('dateVisite', new Date().toISOString().slice(0, 10));
 
   if (initial?.data) applyData(initial.data);
+  // Les colonnes Airtable (statut chantier / pose) priment sur le JSON au ré-affichage
+  if (colOverride) {
+    for (const [k, v] of Object.entries(colOverride)) {
+      const el = document.querySelector(`[data-key="${k}"]`);
+      if (el) el.value = v;
+    }
+  }
   if (initial?.sigTech) sigTech.fromDataURL(initial.sigTech);
   if (initial?.sigClient) sigClient.fromDataURL(initial.sigClient);
   updateSeg();
   renderPhotos();
+  renderMateriel();
+  renderTaches();
   if (state.gps) document.getElementById('gpsLabel').textContent = `(${state.gps.lat.toFixed(5)}, ${state.gps.lng.toFixed(5)})`;
 
   // ===== Events =====
@@ -534,6 +626,9 @@ let sigTech, sigClient;
   document.addEventListener('change', scheduleSave);
 
   document.getElementById('photoInput').addEventListener('change', (e) => { addPhotos([...e.target.files]); e.target.value = ''; });
+  document.getElementById('materielAdd').addEventListener('click', () => { state.materiel.push({ designation: '', quantite: '', note: '' }); renderMateriel(); });
+  document.getElementById('materielSuggest').addEventListener('click', suggestMateriel);
+  document.getElementById('tacheAdd').addEventListener('click', () => { state.taches.push({ label: '', done: false }); renderTaches(); });
   document.getElementById('gpsBtn').addEventListener('click', captureGps);
   document.getElementById('clearTech').addEventListener('click', () => { sigTech.clear(); scheduleSave(); });
   document.getElementById('clearClient').addEventListener('click', () => { sigClient.clear(); scheduleSave(); });
