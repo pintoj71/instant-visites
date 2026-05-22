@@ -17,6 +17,13 @@ function faisaBadge(f) {
   return '';
 }
 
+function chantierBadge(f) {
+  const name = getOptionName(f);
+  if (!name) return '';
+  const cls = { 'À planifier': 'planifier', 'Devis': 'devis', 'Planifié': 'planifie', 'Posé': 'pose', 'SAV': 'sav', 'Annulé': 'annule' }[name] || '';
+  return `<span class="badge chantier ${cls}">${escapeHtml(name)}</span>`;
+}
+
 function render(records) {
   if (!records.length) {
     listEl.innerHTML = `<div class="empty"><div class="icon">📋</div>Aucune visite à afficher</div>`;
@@ -29,13 +36,14 @@ function render(records) {
     const type = getOptionName(f['Type de projet']);
     const date = fmtDate(f['Date visite']);
     const meta = [date, type, (f['Adresse'] || '').split('\n')[0]].filter(Boolean).join(' · ');
+    const statusBadge = isDone ? (faisaBadge(f['Faisabilité']) || '<span class="badge done">Terminée</span>') : '<span class="badge draft">Brouillon</span>';
     return `
       <div class="visite-item ${isDone ? 'done' : ''}" data-id="${r.id}">
         <div class="info">
           <div class="name">${escapeHtml(f['Client'] || 'Sans nom')}</div>
           <div class="meta">${escapeHtml(meta)}</div>
         </div>
-        ${isDone ? faisaBadge(f['Faisabilité']) || '<span class="badge done">Terminée</span>' : '<span class="badge draft">Brouillon</span>'}
+        <div class="badges">${statusBadge}${chantierBadge(f['Statut chantier'])}</div>
       </div>`;
   }).join('');
   listEl.querySelectorAll('.visite-item').forEach(el => {

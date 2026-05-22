@@ -41,7 +41,10 @@ export const FIELDS = {
     sigTechnicien: 'fldN9UyEUCOJ8X1vx',
     sigClient: 'fld66rHAOmgLSCwfd',
     pdfRapport: 'fldEPZMGLyNxOsiV5',
-    refClient: 'fld1FnY6sYYNe7aRi'
+    refClient: 'fld1FnY6sYYNe7aRi',
+    statutChantier: 'fldEG4lMbs69sGtd0',
+    datePosePrevue: 'fld8xQMqmOqNJlUia',
+    equipePose: 'fldwls6jYG1RBJFIr'
   },
   technicien: {
     nom: 'fldhuYbKaGZdZ5QFo',
@@ -55,7 +58,7 @@ export const VISITE_WRITABLE = new Set([
   'Client', 'Téléphone', 'Email', 'Adresse', 'Type de logement', 'Type de projet',
   'Date visite', 'Technicien', 'Statut', 'Faisabilité', 'Estimation budgétaire',
   'Délai indicatif', 'Réponses (JSON)', 'Signature technicien', 'Signature client',
-  'Réf. client (Abonnements)'
+  'Réf. client (Abonnements)', 'Statut chantier', 'Date pose prévue', 'Équipe pose'
 ]);
 
 /* ========== VALIDATION ========== */

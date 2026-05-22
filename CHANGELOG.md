@@ -4,6 +4,29 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.1.0] - 2026-05-22
+
+### Ajouté — la visite devient le fil conducteur du chantier
+- **Préparation matériel** : liste éditable du matériel à prévoir/commander
+  (désignation, quantité, note) avec un bouton « Proposer le matériel type »
+  qui pré-remplit une base selon le type de projet. Reprise dans le PDF.
+- **Travaux préalables = checklist** : les points bloquants à lever avant la
+  pose deviennent des tâches cochables (suivies), au lieu d'un simple texte.
+- **Pipeline de suivi** : nouveau champ `Statut chantier`
+  (À planifier → Devis → Planifié → Posé → SAV / Annulé), affiché en badge
+  sur le dashboard, pour suivre le projet dans la même fiche.
+- **Planification de pose** : `Date pose prévue`, `Équipe pose` et durée estimée.
+- Bloc « Préparation du chantier à venir » ajouté au rapport PDF (statut,
+  planning, tableau matériel, checklist des travaux préalables).
+
+### Modifié
+- Airtable : 3 colonnes ajoutées à « Visites techniques » (`Statut chantier`,
+  `Date pose prévue`, `Équipe pose`) ; matériel + checklist stockés dans
+  `Réponses (JSON)`. Les colonnes Airtable font autorité au ré-affichage
+  (on peut faire avancer le pipeline directement dans Airtable).
+- `VERSION` du Service Worker → v1.1.0 ; `package.json` → 1.1.0.
+- Suppression d'un import/variable inutilisés (`buildLabelIndex`/`LABELS`) dans `visite.js`.
+
 ## [1.0.1] - 2026-05-21
 
 ### Ajouté
