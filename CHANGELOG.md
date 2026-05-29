@@ -4,6 +4,25 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.6.1] - 2026-05-29
+
+### Corrigé — la « pseudo photo enregistrée »
+- Les photos (et croquis) déjà enregistrés sur Airtable étaient **inutilisables** :
+  pas d'aperçu (CSP bloquait les URLs Airtable), pas de suppression possible,
+  et **absents du rapport PDF**. La carte affichait juste un placeholder fantôme
+  qu'on ne pouvait ni ouvrir ni enlever.
+- Nouveau endpoint `/api/visite-attachments` : le serveur télécharge les pièces
+  jointes depuis Airtable et les renvoie en **dataURL base64** au client (la CSP
+  `img-src 'self' data: blob:` les accepte). À l'ouverture d'une visite, les
+  photos/croquis enregistrés se chargent en arrière-plan et **s'affichent
+  vraiment**.
+- Nouveau endpoint `/api/delete-attachment` : un bouton **×** apparaît en
+  surimpression sur chaque photo/croquis enregistré → confirmation → PATCH
+  Airtable (supprime l'item du champ `Photos`/`Croquis`). Plus de fantômes.
+- **PDF** : comme les photos enregistrées ont maintenant leur dataURL, elles
+  sont incluses dans le rapport régénéré (et plus seulement les nouvelles
+  photos de la session).
+
 ## [1.6.0] - 2026-05-29
 
 ### Modifié — Dimensionnement strict (« on n'invente jamais »)

@@ -174,12 +174,12 @@ function renderPhotos() {
   const grid = document.getElementById('photosGrid');
   // Photos déjà enregistrées : on n'affiche l'aperçu que si on a la dataURL locale
   // (les URLs Airtable externes sont bloquées par la CSP -> placeholder libellé).
-  const ex = state.existingPhotos.map((p) => {
-    if (p.dataUrl) {
-      return `<div class="photo-item"><img src="${p.dataUrl}" alt=""><div class="pcap"><input type="text" value="${escapeHtml(p.label || '')}" readonly></div></div>`;
-    }
-    // Photo déjà enregistrée sur Airtable : aperçu impossible (CSP), filename affiché en caption (pas un input).
-    return `<div class="photo-item"><div class="photo-ph">📎<span>Photo enregistrée</span><small>${escapeHtml(p.filename || '')}</small></div></div>`;
+  const ex = state.existingPhotos.map((p, i) => {
+    const visual = p.dataUrl
+      ? `<img src="${p.dataUrl}" alt="">`
+      : `<div class="photo-ph">⏳<span>Chargement…</span><small>${escapeHtml(p.filename || '')}</small></div>`;
+    const delBtn = p.id ? `<button class="photo-del" type="button" data-exphotodel="${i}" title="Supprimer la photo enregistrée">×</button>` : '';
+    return `<div class="photo-item">${visual}${delBtn}</div>`;
   }).join('');
   const nw = state.newPhotos.map((p, i) => `
     <div class="photo-item">
@@ -195,6 +195,21 @@ function renderPhotos() {
   });
   grid.querySelectorAll('button[data-del]').forEach(b => {
     b.addEventListener('click', () => { state.newPhotos.splice(+b.dataset.del, 1); renderPhotos(); scheduleSave(); });
+  });
+  grid.querySelectorAll('button[data-exphotodel]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const i = +b.dataset.exphotodel;
+      const ph = state.existingPhotos[i];
+      if (!ph || !ph.id) return;
+      if (!confirm('Supprimer définitivement cette photo enregistrée ?')) return;
+      b.disabled = true;
+      try {
+        await api.post('/delete-attachment', { visiteId: state.id, attId: ph.id, field: 'Photos' });
+        state.existingPhotos.splice(i, 1);
+        renderPhotos();
+        toast('Photo supprimée');
+      } catch (e) { b.disabled = false; toast('Erreur suppression', 'danger'); }
+    });
   });
 }
 
@@ -213,11 +228,13 @@ async function addPhotos(files) {
 function renderCroquis() {
   const grid = document.getElementById('croquisGrid');
   if (!grid) return;
-  const ex = state.existingCroquis.map(c => `
-    <div class="croquis-item">
-      <div class="croquis-ph">📎<span>Croquis enregistré</span></div>
-      <div class="ccap"><input type="text" value="${escapeHtml(c.label || '')}" readonly></div>
-    </div>`).join('');
+  const ex = state.existingCroquis.map((c, i) => {
+    const visual = c.dataUrl
+      ? `<img src="${c.dataUrl}" alt="croquis">`
+      : `<div class="croquis-ph">⏳<span>Chargement…</span><small>${escapeHtml(c.filename || '')}</small></div>`;
+    const delBtn = c.id ? `<button class="photo-del" type="button" data-excqdel="${i}" title="Supprimer le croquis enregistré">×</button>` : '';
+    return `<div class="croquis-item" style="position:relative;">${visual}${delBtn}</div>`;
+  }).join('');
   const nw = state.newCroquis.map((c, i) => `
     <div class="croquis-item">
       <img src="${c.dataUrl}" alt="croquis" data-cqedit="${i}">
@@ -242,6 +259,42 @@ function renderCroquis() {
       });
     });
   });
+  grid.querySelectorAll('button[data-excqdel]').forEach(b => {
+    b.addEventListener('click', async () => {
+      const i = +b.dataset.excqdel;
+      const cq = state.existingCroquis[i];
+      if (!cq || !cq.id) return;
+      if (!confirm('Supprimer définitivement ce croquis enregistré ?')) return;
+      b.disabled = true;
+      try {
+        await api.post('/delete-attachment', { visiteId: state.id, attId: cq.id, field: 'Croquis' });
+        state.existingCroquis.splice(i, 1);
+        renderCroquis();
+        toast('Croquis supprimé');
+      } catch (e) { b.disabled = false; toast('Erreur suppression', 'danger'); }
+    });
+  });
+}
+
+// Charge en arrière-plan les photos/croquis déjà enregistrés (le serveur les proxie en dataURL).
+async function loadExistingAttachments() {
+  if (!state.id) return;
+  if (!state.existingPhotos.length && !state.existingCroquis.length) return;
+  try {
+    const data = await api.get(`/visite-attachments?visiteId=${state.id}`);
+    for (const ph of (data.photos || [])) {
+      const t = state.existingPhotos.find(p => p.id === ph.id);
+      if (t && ph.dataUrl) t.dataUrl = ph.dataUrl;
+    }
+    for (const cq of (data.croquis || [])) {
+      const t = state.existingCroquis.find(c => c.id === cq.id);
+      if (t && cq.dataUrl) t.dataUrl = cq.dataUrl;
+    }
+    renderPhotos();
+    renderCroquis();
+  } catch (e) {
+    console.warn('Chargement des pièces jointes existantes', e);
+  }
 }
 
 function openNewCroquis() {
@@ -830,10 +883,10 @@ let sigTech, sigClient;
       let parsed = {};
       try { parsed = JSON.parse(f['Réponses (JSON)'] || '{}'); } catch {}
       initial = { data: parsed.answers || {}, sigTech: f['Signature technicien'], sigClient: f['Signature client'] };
-      // photos existantes (Airtable) en lecture seule
-      (f['Photos'] || []).forEach(att => state.existingPhotos.push({ url: att.url, filename: att.filename, label: att.filename }));
-      // croquis existants (Airtable) en lecture seule (CSP : pas d'affichage direct)
-      (f['Croquis'] || []).forEach(att => state.existingCroquis.push({ url: att.url, filename: att.filename, label: att.filename }));
+      // photos existantes (Airtable) : on stocke l'id + filename pour permettre suppression + lazy-load
+      (f['Photos'] || []).forEach(att => state.existingPhotos.push({ id: att.id, filename: att.filename, label: '' }));
+      // croquis existants
+      (f['Croquis'] || []).forEach(att => state.existingCroquis.push({ id: att.id, filename: att.filename, label: '' }));
       state.materiel = parsed.materiel || [];
       state.taches = parsed.taches || [];
       state.splitsInt = parsed.splitsInt || [];
@@ -893,6 +946,8 @@ let sigTech, sigClient;
   renderMateriel();
   renderTaches();
   renderDimensionnement();
+  // Lazy-load des pièces jointes Airtable (proxy serveur → data: URL respectant la CSP)
+  loadExistingAttachments();
   if (state.gps) document.getElementById('gpsLabel').textContent = `(${state.gps.lat.toFixed(5)}, ${state.gps.lng.toFixed(5)})`;
 
   // ===== Events =====
