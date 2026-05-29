@@ -351,8 +351,9 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 #croquisCanvas { display: block; touch-action: none; background: #fff; box-shadow: 0 0 0 1px var(--border); border-radius: 4px; max-width: 100%; max-height: 100%; }
 
 /* Dimensionnement (carte indicative) */
-.dim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
-@media (max-width: 600px) { .dim-grid { grid-template-columns: 1fr; } }
+.dim-grid { margin-top: 10px; }
+.dim-lines { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 600px) { .dim-lines { grid-template-columns: 1fr; } }
 .dim-item {
   background: #fdf3e6; border: 1px solid #f0d9be; border-radius: 8px;
   padding: 10px 12px;
@@ -360,6 +361,23 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 .dim-label { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.3px; }
 .dim-value { font-size: 17px; font-weight: 700; color: var(--primary-2); margin-top: 2px; }
 .dim-hint { font-size: 11px; color: var(--muted); margin-top: 4px; font-style: italic; }
+
+/* Bloc d'avertissement quand des données manquent */
+.dim-blocked {
+  background: #fff4ed; border: 1px solid #ffb380; border-left: 4px solid var(--accent);
+  border-radius: 8px; padding: 12px 14px; margin-top: 10px;
+}
+.dim-blocked strong { color: var(--accent); display: block; margin-bottom: 4px; }
+.dim-blocked ul { margin: 6px 0 0 18px; padding: 0; }
+.dim-blocked li { margin: 2px 0; color: var(--text); font-size: 13px; }
+
+/* Tableau "Détail par pièce" (PAC Air/Air) */
+.dim-perroom { margin-top: 14px; }
+.dim-perroom h3 { font-size: 13px; color: var(--marron); margin: 0 0 6px 0; font-weight: 700; }
+.dim-perroom table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dim-perroom th, .dim-perroom td { padding: 6px 8px; border: 1px solid var(--border); text-align: left; }
+.dim-perroom th { background: #fdf3e6; color: var(--marron); font-weight: 700; }
+.dim-perroom tr:nth-child(even) td { background: #faf5ee; }
 
 /* Liste répétable d'unités intérieures (PAC Air/Air) */
 .unit-list .split-row {
@@ -374,15 +392,17 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 }
 .split-head .del:hover { background: rgba(192,57,43,0.10); }
 .split-place { width: 100%; margin-bottom: 6px; }
-.split-metrics { display: flex; gap: 6px; margin-top: 6px; }
-.split-metrics input { flex: 1; min-width: 0; }
+.split-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+.split-metrics input { min-width: 0; width: 100%; }
+@media (max-width: 480px) { .split-metrics { grid-template-columns: repeat(2, 1fr); } }
 
 /* Photos */
 .photos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
 .photo-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
 .photo-item img { width: 100%; height: 120px; object-fit: cover; display: block; background: #eee; }
-.photo-item .photo-ph { height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: #f5ede1; color: var(--muted); font-size: 22px; }
+.photo-item .photo-ph { height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; background: #f5ede1; color: var(--muted); font-size: 22px; padding: 6px; text-align: center; }
 .photo-item .photo-ph span { font-size: 11px; }
+.photo-item .photo-ph small { font-size: 10px; color: var(--muted); word-break: break-all; line-height: 1.2; }
 .photo-item .pcap { padding: 6px; display: flex; flex-direction: column; gap: 6px; }
 .photo-item .pcap input { font-size: 12px; padding: 6px 8px; }
 .photo-item .pcap button { font-size: 11px; padding: 5px; }

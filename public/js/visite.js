@@ -175,10 +175,11 @@ function renderPhotos() {
   // Photos déjà enregistrées : on n'affiche l'aperçu que si on a la dataURL locale
   // (les URLs Airtable externes sont bloquées par la CSP -> placeholder libellé).
   const ex = state.existingPhotos.map((p) => {
-    const visual = p.dataUrl
-      ? `<img src="${p.dataUrl}" alt="">`
-      : `<div class="photo-ph">📎<span>Photo enregistrée</span></div>`;
-    return `<div class="photo-item">${visual}<div class="pcap"><input type="text" value="${escapeHtml(p.label || '')}" readonly></div></div>`;
+    if (p.dataUrl) {
+      return `<div class="photo-item"><img src="${p.dataUrl}" alt=""><div class="pcap"><input type="text" value="${escapeHtml(p.label || '')}" readonly></div></div>`;
+    }
+    // Photo déjà enregistrée sur Airtable : aperçu impossible (CSP), filename affiché en caption (pas un input).
+    return `<div class="photo-item"><div class="photo-ph">📎<span>Photo enregistrée</span><small>${escapeHtml(p.filename || '')}</small></div></div>`;
   }).join('');
   const nw = state.newPhotos.map((p, i) => `
     <div class="photo-item">
@@ -316,6 +317,7 @@ function renderSplitsInt() {
         ${SPLIT_TYPES.map(t => `<label><input type="radio" name="spi${i}type" data-spi="${i}" data-f="type" value="${t}"${u.type === t ? ' checked' : ''}><span>${t}</span></label>`).join('')}
       </div>
       <div class="split-metrics">
+        <input type="text" inputmode="decimal" data-spi="${i}" data-f="surfacePiece" placeholder="Surface (m²)" value="${escapeHtml(u.surfacePiece || '')}">
         <input type="text" inputmode="decimal" data-spi="${i}" data-f="frigoM" placeholder="Frigo (m)" value="${escapeHtml(u.frigoM || '')}">
         <input type="text" inputmode="decimal" data-spi="${i}" data-f="elecM" placeholder="Élec (m)" value="${escapeHtml(u.elecM || '')}">
         <input type="text" inputmode="decimal" data-spi="${i}" data-f="puissance" placeholder="Puissance (kW)" value="${escapeHtml(u.puissance || '')}">
@@ -327,17 +329,18 @@ function renderSplitsInt() {
       if (inp.type === 'radio' && !inp.checked) return;
       state.splitsInt[+inp.dataset.spi][inp.dataset.f] = inp.value;
       scheduleSave();
+      renderDimensionnement();
     });
   });
   list.querySelectorAll('button[data-spidel]').forEach(b => {
-    b.addEventListener('click', () => { state.splitsInt.splice(+b.dataset.spidel, 1); renderSplitsInt(); scheduleSave(); });
+    b.addEventListener('click', () => { state.splitsInt.splice(+b.dataset.spidel, 1); renderSplitsInt(); scheduleSave(); renderDimensionnement(); });
   });
 }
 
 function wireSplitsInt() {
   const addBtn = document.getElementById('splitsIntAdd');
   if (!addBtn) return; // pas une visite PAC Air/Air
-  addBtn.addEventListener('click', () => { state.splitsInt.push({ emplacement: '', type: '', frigoM: '', elecM: '', puissance: '' }); renderSplitsInt(); scheduleSave(); renderDimensionnement(); });
+  addBtn.addEventListener('click', () => { state.splitsInt.push({ emplacement: '', surfacePiece: '', type: '', frigoM: '', elecM: '', puissance: '' }); renderSplitsInt(); scheduleSave(); renderDimensionnement(); });
   renderSplitsInt();
 }
 
@@ -349,17 +352,38 @@ function currentDimensions() {
 function renderDimensionnement() {
   const host = document.getElementById('dimensionnementBody');
   if (!host) return;
-  const lines = currentDimensions();
-  if (!lines.length) {
-    host.innerHTML = '<p class="muted">Sélectionnez le type de projet et renseignez surface / hauteur / isolation pour voir le dimensionnement.</p>';
+  const dim = currentDimensions();
+  if (dim.status === 'no-data') {
+    host.innerHTML = '<p class="muted">Sélectionnez le type de projet et renseignez surface / hauteur / isolation / nb pièces pour voir le dimensionnement.</p>';
     return;
   }
-  host.innerHTML = lines.map(l => `
+  if (dim.status === 'incomplete') {
+    host.innerHTML = `
+      <div class="dim-blocked">
+        <strong>⚠️ Calcul indisponible — données manquantes</strong>
+        <p class="muted">Le dimensionnement n'est pas affiché pour ne pas inventer de valeurs. Complétez :</p>
+        <ul>${dim.missing.map(m => `<li>${escapeHtml(m)}</li>`).join('')}</ul>
+      </div>`;
+    return;
+  }
+  // status === 'ok'
+  let html = '<div class="dim-lines">' + dim.lines.map(l => `
     <div class="dim-item">
       <div class="dim-label">${escapeHtml(l.label)}</div>
       <div class="dim-value">${escapeHtml(l.value)}</div>
       ${l.hint ? `<div class="dim-hint">${escapeHtml(l.hint)}</div>` : ''}
-    </div>`).join('');
+    </div>`).join('') + '</div>';
+  if (dim.perRoom && dim.perRoom.length) {
+    html += `
+      <div class="dim-perroom">
+        <h3>Détail par pièce</h3>
+        <table>
+          <thead><tr><th>Pièce</th><th>Surface</th><th>Puissance</th><th>Type d'unité</th></tr></thead>
+          <tbody>${dim.perRoom.map(r => `<tr><td>${escapeHtml(r.emplacement)}</td><td>${r.surface} m²</td><td><strong>${r.puissance} kW</strong></td><td>${escapeHtml(r.type || '—')}</td></tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+  host.innerHTML = html;
 }
 
 // ===== Sauvegarde locale (autosave) =====
