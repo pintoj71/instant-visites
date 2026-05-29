@@ -1,5 +1,6 @@
 // POST /api/login  body: { name, pin }
-// Authentifie un technicien (table Techniciens, PIN hashé SHA-256) ou via le PIN global.
+// Authentifie un technicien (table Techniciens : PIN en clair OU hashé SHA-256)
+// ou via le PIN global APP_PIN.
 import {
   airtable, TABLES, signToken, authCookie, hashPin, safeEqualHex, checkGlobalPin,
   getClientIp, rateLimitCheck, rateLimitFail, rateLimitReset, escapeFormula,
@@ -42,10 +43,20 @@ export const handler = async (event) => {
       );
       const tech = data.records?.[0];
       if (tech) {
-        const stored = tech.fields['PIN'] || '';
-        if (stored && safeEqualHex(hashPin(pin), stored)) {
-          authenticated = true;
-          displayName = tech.fields['Nom'] || name;
+        const stored = String(tech.fields['PIN'] || '').trim();
+        const submitted = pin.trim();
+        if (stored) {
+          // Compat : si la valeur stockée ressemble à un hash SHA-256 hex (64 car),
+          // on compare le hash du PIN saisi. Sinon on compare en clair
+          // (PIN tapé directement dans Airtable, plus simple à gérer).
+          const isHash = /^[a-f0-9]{64}$/i.test(stored);
+          const ok = isHash
+            ? safeEqualHex(hashPin(submitted), stored)
+            : safeEqualHex(submitted, stored);
+          if (ok) {
+            authenticated = true;
+            displayName = tech.fields['Nom'] || name;
+          }
         }
       }
     }
