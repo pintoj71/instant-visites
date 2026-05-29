@@ -175,9 +175,9 @@ export async function generatePdf(payload) {
   textBlock('Recommandations', payload.recommandations);
   if (payload.gps) { doc.setFontSize(8).setTextColor(...COL.grey); doc.text(`Position GPS : ${payload.gps.lat.toFixed(5)}, ${payload.gps.lng.toFixed(5)}`, M, y); y += 5; }
 
-  // ===== Dimensionnement (indicatif) =====
-  const dim = (payload.dimensionnement || []).filter(d => d && d.value);
-  if (dim.length) {
+  // ===== Dimensionnement (indicatif) — affiché uniquement si status === 'ok' =====
+  const dim = payload.dimensionnement || null;
+  if (dim && dim.status === 'ok' && dim.lines && dim.lines.length) {
     ensure(18);
     y += 2;
     doc.setFillColor(...COL.bordeaux);
@@ -187,7 +187,7 @@ export async function generatePdf(payload) {
     y += 12;
     doc.autoTable({
       startY: y,
-      body: dim.map(d => [d.label, d.value]),
+      body: dim.lines.map(d => [d.label, d.value]),
       theme: 'grid',
       bodyStyles: { fontSize: 9, textColor: COL.dark, cellPadding: 1.8 },
       alternateRowStyles: { fillColor: [250, 246, 240] },
@@ -198,6 +198,23 @@ export async function generatePdf(payload) {
       margin: { left: M, right: M }
     });
     y = doc.lastAutoTable.finalY + 4;
+    // Tableau detail par piece (PAC Air/Air)
+    if (dim.perRoom && dim.perRoom.length) {
+      ensure(20);
+      doc.setFont('helvetica', 'bold').setFontSize(9).setTextColor(...COL.marron);
+      doc.text('Detail par piece', M, y); y += 4;
+      doc.autoTable({
+        startY: y,
+        head: [['Piece', 'Surface', 'Puissance', "Type d'unite"]],
+        body: dim.perRoom.map(r => [r.emplacement, r.surface + ' m2', r.puissance + ' kW', r.type || '-']),
+        theme: 'grid',
+        headStyles: { fillColor: COL.marron, textColor: 255, fontSize: 9, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 9, textColor: COL.dark, cellPadding: 1.6 },
+        alternateRowStyles: { fillColor: [250, 246, 240] },
+        margin: { left: M, right: M }
+      });
+      y = doc.lastAutoTable.finalY + 4;
+    }
   }
 
   // ===== Preparation du chantier (fil conducteur) =====

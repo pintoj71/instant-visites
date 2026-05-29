@@ -4,6 +4,38 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.6.0] - 2026-05-29
+
+### Modifié — Dimensionnement strict (« on n'invente jamais »)
+- `computeDimensions` retourne désormais `{ status, missing, lines, perRoom }` au
+  lieu d'une liste plate. États :
+  - **`no-data`** (rien saisi) : message neutre invitant à remplir.
+  - **`incomplete`** (input critique manquant) : **bloc d'avertissement** qui
+    **liste précisément** les champs à compléter (« Surface (m²) », « Niveau
+    d'isolation », « Unité 2 (Chambre) : surface (m²) »…). Aucune valeur
+    estimée n'est affichée tant que les données ne sont pas complètes.
+  - **`ok`** : valeurs calculées normalement.
+- Validation stricte par type :
+  - Tous chauffage : type + isolation + hauteur (+ surface globale sauf Air/Air).
+  - Tous (sauf Air/Air) : nb pièces obligatoire pour le calcul ECS.
+  - **PAC Air/Air** : ≥ 1 unité intérieure, chaque unité avec **emplacement +
+    surface (m²)** obligatoires.
+- PDF : le bloc dimensionnement n'apparaît que si `status === 'ok'`.
+
+### Ajouté — PAC Air/Air : dimensionnement par pièce + global
+- Nouvelle colonne **« Surface (m²) »** sur chaque unité intérieure (liste
+  répétable des splits).
+- Calcul **par pièce** : surface × hauteur × coefficient isolation → kW par split.
+- Calcul **global** : somme des puissances pièce par pièce (≠ puissance d'un
+  bâtiment d'un seul tenant).
+- Tableau **« Détail par pièce »** affiché sous la dim (pièce / surface /
+  puissance / type d'unité) + repris dans le PDF.
+
+### Corrigé
+- Photo enregistrée (Airtable, aperçu CSP impossible) : ne s'affiche plus dans
+  un champ texte readonly trompeur (« photo.jpg »). Le nom de fichier apparaît
+  désormais en **petite caption** sous le placeholder, sans input.
+
 ## [1.5.0] - 2026-05-22
 
 ### Ajouté — Croquis & schémas

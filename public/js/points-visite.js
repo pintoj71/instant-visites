@@ -214,127 +214,185 @@ export function materielFor(type) {
 // Coefficient de pertes thermiques en W/m3 selon le niveau d'isolation déclaré.
 const ISO_W_PAR_M3 = { 'Faible': 80, 'Moyen': 60, 'Bon': 42, 'RT2012+': 30 };
 
+const HEATING_TYPES = new Set([
+  'Poêle ou insert bois', 'Poêle ou insert granulés',
+  'Chaudière bois', 'Chaudière granulés', 'Chaudière gaz',
+  'PAC Air/Eau', 'PAC Eau/Eau', 'PAC Air/Air'
+]);
+// Types pour lesquels on a besoin du nb pièces (ECS ou ballon thermo)
+const NEEDS_NB_PIECES = new Set([
+  'Poêle ou insert bois', 'Poêle ou insert granulés',
+  'Chaudière bois', 'Chaudière granulés', 'Chaudière gaz',
+  'PAC Air/Eau', 'PAC Eau/Eau',
+  'Chauffe-eau thermodynamique'
+]);
+
 // Helpers
 const num = (v) => { const n = parseFloat(String(v || '').replace(',', '.')); return isFinite(n) ? n : 0; };
 const round1 = (n) => Math.round(n * 10) / 10;
 
-// Renvoie un tableau de lignes { label, value, hint? } à afficher / mettre dans le PDF.
-// answers = réponses saisies (collectData), splitsInt = liste des unités intérieures (PAC Air/Air).
+// Renvoie { status: 'no-data'|'incomplete'|'ok', missing: [...], lines: [...], perRoom: [...] }.
+// On NE retourne JAMAIS de valeurs estimées si un input critique est manquant —
+// on liste plutôt les champs à compléter (règle "on n'invente pas").
 export function computeDimensions(type, answers, splitsInt) {
   const a = answers || {};
   const surface = num(a.surface);
-  const hauteur = num(a.hauteurPlafond) || 2.5;
+  const hauteur = num(a.hauteurPlafond);
   const nbPieces = num(a.nbPieces);
-  const isolation = a.isolation || 'Moyen';
-  const coeff = ISO_W_PAR_M3[isolation] || 60;
-  const out = [];
+  const isolation = a.isolation || '';
+  const splits = (splitsInt || []).filter(u => u && (u.emplacement || u.surfacePiece || u.type || u.frigoM || u.elecM || u.puissance));
 
-  // Puissance chauffage (commun à tous les générateurs de chaud)
+  // Rien saisi du tout → état neutre (pas un blocage)
+  if (!type && surface === 0 && hauteur === 0 && nbPieces === 0 && !isolation && splits.length === 0) {
+    return { status: 'no-data', missing: [], lines: [], perRoom: [] };
+  }
+
+  // ===== VALIDATION STRICTE =====
+  const missing = [];
+  if (!type) missing.push('Type de projet');
+
+  if (HEATING_TYPES.has(type)) {
+    if (!isolation || !ISO_W_PAR_M3[isolation]) missing.push("Niveau d'isolation");
+    if (hauteur <= 0) missing.push('Hauteur sous plafond (m)');
+
+    if (type === 'PAC Air/Air') {
+      // Air/Air : per-pièce obligatoire (au moins 1 split avec emplacement + surface)
+      if (splits.length === 0) {
+        missing.push('Au moins une unité intérieure');
+      } else {
+        splits.forEach((u, i) => {
+          const lbl = `Unité ${i + 1}${u.emplacement ? ' (' + u.emplacement + ')' : ''}`;
+          if (!(u.emplacement || '').trim()) missing.push(`${lbl} : emplacement`);
+          if (num(u.surfacePiece) <= 0) missing.push(`${lbl} : surface (m²)`);
+        });
+      }
+    } else {
+      if (surface <= 0) missing.push('Surface (m²)');
+    }
+  }
+
+  if (NEEDS_NB_PIECES.has(type) && nbPieces <= 0) missing.push('Nombre de pièces');
+
+  if (missing.length) return { status: 'incomplete', missing, lines: [], perRoom: [] };
+
+  // ===== CALCUL =====
+  const coeff = ISO_W_PAR_M3[isolation];
+  const lines = [];
+  const perRoom = [];
   let puissanceKW = 0;
-  if (surface > 0) {
-    const volume = surface * hauteur;
-    puissanceKW = round1((volume * coeff) / 1000);
-    out.push({
+
+  if (type === 'PAC Air/Air') {
+    for (const u of splits) {
+      const sp = num(u.surfacePiece);
+      const vol = sp * hauteur;
+      const p = round1((vol * coeff) / 1000);
+      perRoom.push({
+        emplacement: (u.emplacement || '').trim(),
+        surface: sp,
+        puissance: p,
+        type: u.type || ''
+      });
+      puissanceKW = round1(puissanceKW + p);
+    }
+    lines.push({
+      label: 'Puissance totale (somme des pièces)',
+      value: `${puissanceKW} kW`,
+      hint: `Isolation ${isolation} : ${coeff} W/m³ · hauteur ${hauteur} m`
+    });
+  } else if (HEATING_TYPES.has(type)) {
+    const vol = surface * hauteur;
+    puissanceKW = round1((vol * coeff) / 1000);
+    lines.push({
       label: 'Puissance chauffage recommandée',
       value: `${puissanceKW} kW`,
-      hint: `Volume ${Math.round(volume)} m³ × ${coeff} W/m³ (isolation ${isolation})`
+      hint: `Volume ${Math.round(vol)} m³ × ${coeff} W/m³ (isolation ${isolation})`
     });
   }
 
-  // Nb personnes estimé + volume ECS de base
-  const nbPers = Math.max(1, nbPieces ? nbPieces - 1 : 3);
-  if (type !== 'PAC Air/Air') {
+  // ECS standard (hors Air/Air et hors CET qui a son propre dimensionnement ballon)
+  if (NEEDS_NB_PIECES.has(type) && type !== 'Chauffe-eau thermodynamique') {
+    const nbPers = Math.max(1, nbPieces - 1);
     const volECS = Math.max(100, nbPers * 50);
-    out.push({
-      label: 'Volume ECS recommandé',
-      value: `${volECS} L`,
-      hint: `≈ ${nbPers} personne(s) × 50 L`
-    });
+    lines.push({ label: 'Volume ECS recommandé', value: `${volECS} L`, hint: `${nbPers} personne(s) × 50 L` });
   }
 
-  // Bois / granulés : conduit + (granulés) stockage
+  // Tubage bois
   if (type === 'Poêle ou insert bois' || type === 'Chaudière bois') {
-    out.push({
+    lines.push({
       label: 'Diamètre tubage suggéré',
       value: puissanceKW < 10 ? 'Ø150 mm' : (puissanceKW < 16 ? 'Ø180 mm' : 'Ø200+ mm'),
       hint: 'Indicatif — vérifier la notice constructeur'
     });
   }
+  // Granulés : tubage + stockage
   if (type === 'Poêle ou insert granulés' || type === 'Chaudière granulés') {
-    out.push({ label: 'Diamètre tubage suggéré', value: 'Ø80 mm (étanche) ou Ø100 mm' });
-    if (puissanceKW > 0) {
-      out.push({
-        label: 'Stockage granulés estimé (1 saison)',
-        value: `${round1(puissanceKW * 0.4)} m³/an`,
-        hint: `~0,4 m³ par kW (≈ 4500 kWh/t, ~1800 h chauffe/an, charge 70 %)`
-      });
-      out.push({
-        label: 'Silo recommandé',
-        value: `${Math.max(2, Math.ceil(puissanceKW * 0.5))} m³`,
-        hint: 'Capacité ½ à 1 saison'
-      });
-    }
+    lines.push({ label: 'Diamètre tubage suggéré', value: 'Ø80 mm (étanche) ou Ø100 mm' });
+    lines.push({
+      label: 'Stockage granulés estimé (1 saison)',
+      value: `${round1(puissanceKW * 0.4)} m³/an`,
+      hint: '~0,4 m³ par kW (≈ 4500 kWh/t, ~1800 h chauffe/an, charge 70 %)'
+    });
+    lines.push({
+      label: 'Silo recommandé',
+      value: `${Math.max(2, Math.ceil(puissanceKW * 0.5))} m³`,
+      hint: 'Capacité ½ à 1 saison'
+    });
   }
+  // Chaudière bois/granulés : ballon tampon
   if (type === 'Chaudière bois' || type === 'Chaudière granulés') {
-    if (puissanceKW > 0) {
-      out.push({
-        label: 'Ballon tampon recommandé',
-        value: `${Math.round(puissanceKW * 17)} L`,
-        hint: '≈ 15-20 L par kW de puissance'
-      });
-    }
+    lines.push({
+      label: 'Ballon tampon recommandé',
+      value: `${Math.round(puissanceKW * 17)} L`,
+      hint: '≈ 15-20 L par kW'
+    });
   }
-
   // Gaz
   if (type === 'Chaudière gaz') {
-    out.push({ label: 'Évacuation suggérée', value: 'Ventouse Ø60-100 mm (type C, étanche)' });
+    lines.push({ label: 'Évacuation suggérée', value: 'Ventouse Ø60-100 mm (type C, étanche)' });
   }
-
   // PAC Air/Eau
-  if (type === 'PAC Air/Eau' && puissanceKW > 0) {
-    out.push({
+  if (type === 'PAC Air/Eau') {
+    lines.push({
       label: 'Puissance frigorifique unité ext.',
-      value: `≈ ${round1(puissanceKW / 0.95)} kW`,
+      value: `${round1(puissanceKW / 0.95)} kW`,
       hint: 'COP supposé ≈ 3,5 ; majoration ~5 % pour pertes annexes'
     });
   }
-
-  // PAC Eau/Eau captage
-  if (type === 'PAC Eau/Eau' && puissanceKW > 0) {
-    out.push({
+  // PAC Eau/Eau
+  if (type === 'PAC Eau/Eau') {
+    lines.push({
       label: 'Captage horizontal — surface',
       value: `${Math.round(surface * 2)} m²`,
       hint: '≈ 2× la surface à chauffer (variable selon sol)'
     });
-    out.push({
+    lines.push({
       label: 'Sondes verticales — linéaire total',
       value: `${Math.round(puissanceKW * 20)} m`,
       hint: '~20 m/kW (très variable selon sous-sol)'
     });
   }
-
-  // PAC Air/Air : total liaisons frigo (somme des splits) + pré-charge
+  // PAC Air/Air : totaux frigo/élec + pré-charge (les splits avec longueurs renseignées)
   if (type === 'PAC Air/Air') {
-    const splits = (splitsInt || []).filter(u => u && (num(u.frigoM) > 0 || num(u.elecM) > 0 || u.emplacement));
-    if (splits.length) {
-      const totalFrigo = round1(splits.reduce((s, u) => s + num(u.frigoM), 0));
-      const totalElec = round1(splits.reduce((s, u) => s + num(u.elecM), 0));
-      out.push({ label: 'Liaisons frigo totales', value: `${totalFrigo} m`, hint: `${splits.length} unité(s) intérieure(s)` });
-      out.push({ label: 'Câble élec total', value: `${totalElec} m` });
+    const withLen = splits.filter(u => num(u.frigoM) > 0 || num(u.elecM) > 0);
+    if (withLen.length) {
+      const totalFrigo = round1(withLen.reduce((s, u) => s + num(u.frigoM), 0));
+      const totalElec = round1(withLen.reduce((s, u) => s + num(u.elecM), 0));
+      lines.push({ label: 'Liaisons frigo totales', value: `${totalFrigo} m`, hint: `${withLen.length} unité(s) avec longueur renseignée` });
+      lines.push({ label: 'Câble élec total', value: `${totalElec} m` });
       const surcharge = Math.max(0, totalFrigo - 7);
-      out.push({
+      lines.push({
         label: 'Pré-charge fluide R32',
         value: surcharge > 0 ? `${Math.round(surcharge * 30)} g supplémentaires` : 'Aucune (≤ 7 m)',
-        hint: '30 g/m au-delà de 7 m (vérifier la notice fabricant)'
+        hint: '30 g/m au-delà de 7 m (vérifier notice fabricant)'
       });
     }
   }
-
-  // Chauffe-eau thermodynamique : ballon selon nb pers
+  // CET
   if (type === 'Chauffe-eau thermodynamique') {
+    const nbPers = Math.max(1, nbPieces - 1);
     const v = nbPers <= 4 ? 200 : (nbPers <= 5 ? 270 : 300);
-    out.push({ label: 'Volume ballon recommandé', value: `${v} L`, hint: `≈ ${nbPers} personne(s)` });
+    lines.push({ label: 'Volume ballon recommandé', value: `${v} L`, hint: `${nbPers} personne(s)` });
   }
 
-  return out;
+  return { status: 'ok', missing: [], lines, perRoom };
 }
