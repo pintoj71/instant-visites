@@ -306,6 +306,61 @@ details.section .section-body { padding: 12px 14px; }
 .ramonage-fold > summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 0; }
 .ramonage-fold > summary::marker { color: var(--muted); }
 
+/* Croquis & schémas */
+.croquis-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 10px; }
+.croquis-item { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 6px; }
+.croquis-item img { width: 100%; height: 100px; object-fit: contain; background: #fff; border-radius: 6px; cursor: pointer; }
+.croquis-item .croquis-ph { width: 100%; height: 100px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; background: #faf5ee; border-radius: 6px; }
+.croquis-item .ccap { display: flex; gap: 4px; margin-top: 6px; align-items: center; }
+.croquis-item .ccap input { flex: 1; min-width: 0; padding: 6px 8px; font-size: 12px; }
+
+/* Éditeur croquis (overlay plein écran) */
+html.no-scroll, body.no-scroll { overflow: hidden; }
+.croquis-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  z-index: 1000; display: flex; padding: 6px;
+}
+.croquis-editor {
+  background: var(--surface); border-radius: 12px;
+  display: flex; flex-direction: column; flex: 1;
+  max-width: 1100px; margin: auto;
+  width: 100%; max-height: 100%; overflow: hidden;
+}
+.croquis-toolbar {
+  display: flex; gap: 4px; padding: 8px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  align-items: center; flex-wrap: wrap;
+}
+.croquis-toolbar .tools-group {
+  display: flex; gap: 4px; padding: 0 6px; align-items: center;
+  border-right: 1px solid var(--border);
+}
+.croquis-toolbar .tools-group.right { margin-left: auto; border-right: 0; }
+.croquis-toolbar .ctool {
+  border: 1px solid var(--border); background: #fff;
+  border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 13px;
+  min-width: 32px; min-height: 32px;
+  display: inline-flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.croquis-toolbar .ctool.sel { box-shadow: inset 0 0 0 2px var(--accent); background: #fdf1e6; }
+.croquis-toolbar .ctool.color { width: 28px; height: 28px; padding: 0; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--border); }
+.croquis-toolbar .ctool.color.sel { box-shadow: 0 0 0 2px var(--accent); }
+.croquis-toolbar .ctool.danger { color: var(--danger); }
+.croquis-canvas-wrap { flex: 1; min-height: 0; padding: 8px; background: #f9f4ee; display: flex; align-items: center; justify-content: center; }
+#croquisCanvas { display: block; touch-action: none; background: #fff; box-shadow: 0 0 0 1px var(--border); border-radius: 4px; max-width: 100%; max-height: 100%; }
+
+/* Dimensionnement (carte indicative) */
+.dim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+@media (max-width: 600px) { .dim-grid { grid-template-columns: 1fr; } }
+.dim-item {
+  background: #fdf3e6; border: 1px solid #f0d9be; border-radius: 8px;
+  padding: 10px 12px;
+}
+.dim-label { font-size: 11px; color: var(--muted); text-transform: uppercase; font-weight: 700; letter-spacing: 0.3px; }
+.dim-value { font-size: 17px; font-weight: 700; color: var(--primary-2); margin-top: 2px; }
+.dim-hint { font-size: 11px; color: var(--muted); margin-top: 4px; font-style: italic; }
+
 /* Liste répétable d'unités intérieures (PAC Air/Air) */
 .unit-list .split-row {
   margin-top: 10px; padding: 10px; background: var(--surface);

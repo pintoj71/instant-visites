@@ -1,8 +1,9 @@
 import { api, toast, escapeHtml, getOptionName } from '/js/api.js';
 import { initSignaturePad } from '/js/signature.js';
 import { generatePdf } from '/js/pdf-generator.js';
+import { openCroquisEditor } from '/js/croquis.js';
 import {
-  TYPES_PROJET, COMMON_SECTIONS, blocksForType, CHANTIER_STATUTS, materielFor, SPLIT_TYPES
+  TYPES_PROJET, COMMON_SECTIONS, blocksForType, CHANTIER_STATUTS, materielFor, SPLIT_TYPES, computeDimensions
 } from '/js/points-visite.js';
 
 const params = new URLSearchParams(location.search);
@@ -10,6 +11,8 @@ const state = {
   id: params.get('id') || null,
   newPhotos: [],        // { dataUrl, label }
   existingPhotos: [],    // { url|dataUrl, label, filename }
+  newCroquis: [],       // { dataUrl, label }  (croquis dessinés cette session)
+  existingCroquis: [],   // { url, filename, label }  (croquis déjà enregistrés sur Airtable)
   materiel: [],          // { designation, quantite, note }
   taches: [],            // { label, done }
   splitsInt: [],         // PAC Air/Air : { emplacement, type, frigoM, elecM, puissance }
@@ -205,6 +208,47 @@ async function addPhotos(files) {
   scheduleSave();
 }
 
+// ===== Croquis & schémas =====
+function renderCroquis() {
+  const grid = document.getElementById('croquisGrid');
+  if (!grid) return;
+  const ex = state.existingCroquis.map(c => `
+    <div class="croquis-item">
+      <div class="croquis-ph">📎<span>Croquis enregistré</span></div>
+      <div class="ccap"><input type="text" value="${escapeHtml(c.label || '')}" readonly></div>
+    </div>`).join('');
+  const nw = state.newCroquis.map((c, i) => `
+    <div class="croquis-item">
+      <img src="${c.dataUrl}" alt="croquis" data-cqedit="${i}">
+      <div class="ccap">
+        <input type="text" data-cq="${i}" placeholder="Libellé (ex: salon)" value="${escapeHtml(c.label || '')}">
+        <button class="btn ghost small" type="button" data-cqdel="${i}" title="Supprimer">×</button>
+      </div>
+    </div>`).join('');
+  grid.innerHTML = ex + nw;
+  grid.querySelectorAll('input[data-cq]').forEach(inp => {
+    inp.addEventListener('input', () => { state.newCroquis[+inp.dataset.cq].label = inp.value; scheduleSave(); });
+  });
+  grid.querySelectorAll('button[data-cqdel]').forEach(b => {
+    b.addEventListener('click', () => { state.newCroquis.splice(+b.dataset.cqdel, 1); renderCroquis(); scheduleSave(); });
+  });
+  grid.querySelectorAll('img[data-cqedit]').forEach(img => {
+    img.addEventListener('click', () => {
+      const i = +img.dataset.cqedit;
+      openCroquisEditor({
+        initialDataUrl: state.newCroquis[i].dataUrl,
+        onSave: (dataUrl) => { state.newCroquis[i].dataUrl = dataUrl; renderCroquis(); scheduleSave(); }
+      });
+    });
+  });
+}
+
+function openNewCroquis() {
+  openCroquisEditor({
+    onSave: (dataUrl) => { state.newCroquis.push({ dataUrl, label: '' }); renderCroquis(); scheduleSave(); }
+  });
+}
+
 // ===== Matériel à prévoir =====
 function renderMateriel() {
   const list = document.getElementById('materielList');
@@ -293,8 +337,29 @@ function renderSplitsInt() {
 function wireSplitsInt() {
   const addBtn = document.getElementById('splitsIntAdd');
   if (!addBtn) return; // pas une visite PAC Air/Air
-  addBtn.addEventListener('click', () => { state.splitsInt.push({ emplacement: '', type: '', frigoM: '', elecM: '', puissance: '' }); renderSplitsInt(); scheduleSave(); });
+  addBtn.addEventListener('click', () => { state.splitsInt.push({ emplacement: '', type: '', frigoM: '', elecM: '', puissance: '' }); renderSplitsInt(); scheduleSave(); renderDimensionnement(); });
   renderSplitsInt();
+}
+
+// ===== Dimensionnement (indicatif, recalculé en direct) =====
+function currentDimensions() {
+  const d = collectData();
+  return computeDimensions(d.typeProjet || '', d, state.splitsInt);
+}
+function renderDimensionnement() {
+  const host = document.getElementById('dimensionnementBody');
+  if (!host) return;
+  const lines = currentDimensions();
+  if (!lines.length) {
+    host.innerHTML = '<p class="muted">Sélectionnez le type de projet et renseignez surface / hauteur / isolation pour voir le dimensionnement.</p>';
+    return;
+  }
+  host.innerHTML = lines.map(l => `
+    <div class="dim-item">
+      <div class="dim-label">${escapeHtml(l.label)}</div>
+      <div class="dim-value">${escapeHtml(l.value)}</div>
+      ${l.hint ? `<div class="dim-hint">${escapeHtml(l.hint)}</div>` : ''}
+    </div>`).join('');
 }
 
 // ===== Sauvegarde locale (autosave) =====
@@ -306,6 +371,7 @@ function snapshot() {
     sigTech: sigTech.isEmpty() ? '' : sigTech.toDataURL(),
     sigClient: sigClient.isEmpty() ? '' : sigClient.toDataURL(),
     newPhotos: state.newPhotos,
+    newCroquis: state.newCroquis,
     materiel: state.materiel,
     taches: state.taches,
     splitsInt: state.splitsInt,
@@ -410,6 +476,7 @@ function buildFields(statut) {
     'Réponses (JSON)': JSON.stringify({
       answers: d,
       photoLabels: state.newPhotos.map(p => p.label).filter(Boolean),
+      croquisLabels: state.newCroquis.map(c => c.label).filter(Boolean),
       materiel: state.materiel.filter(m => (m.designation || '').trim()),
       taches: state.taches.filter(t => (t.label || '').trim()),
       splitsInt: state.splitsInt.filter(u => (u.emplacement || u.type || u.frigoM || u.elecM || '').toString().trim()),
@@ -437,6 +504,8 @@ function buildPdfPayload() {
 
   const photos = state.existingPhotos.filter(p => p.dataUrl).map(p => ({ dataUrl: p.dataUrl, label: p.label }))
     .concat(state.newPhotos.map(p => ({ dataUrl: p.dataUrl, label: p.label })));
+  const croquis = state.existingCroquis.filter(c => c.dataUrl).map(c => ({ dataUrl: c.dataUrl, label: c.label }))
+    .concat(state.newCroquis.map(c => ({ dataUrl: c.dataUrl, label: c.label })));
 
   return {
     type,
@@ -458,6 +527,8 @@ function buildPdfPayload() {
       taches: state.taches.filter(t => (t.label || '').trim())
     },
     splitsInt: state.splitsInt.filter(u => (u.emplacement || u.type || u.frigoM || u.elecM || '').toString().trim()),
+    dimensionnement: currentDimensions(),
+    croquis,
     gps: state.gps,
     photos,
     sigTech: sigTech.isEmpty() ? '' : sigTech.toDataURL(),
@@ -492,6 +563,16 @@ async function saveRecord(statut) {
   state.existingPhotos.push(...state.newPhotos.map(p => ({ dataUrl: p.dataUrl, label: p.label })));
   state.newPhotos = [];
   renderPhotos();
+  // Upload des nouveaux croquis (append) puis bascule en "existants"
+  for (const c of state.newCroquis) {
+    const base64 = c.dataUrl.split(',')[1];
+    const fname = (c.label ? c.label.replace(/[^a-z0-9]/gi, '_') : 'croquis') + '.png';
+    try { await api.post('/upload-croquis', { visiteId: state.id, croquisBase64: base64, filename: fname }); }
+    catch (e) { console.error('upload croquis', e); }
+  }
+  state.existingCroquis.push(...state.newCroquis.map(c => ({ dataUrl: c.dataUrl, label: c.label })));
+  state.newCroquis = [];
+  renderCroquis();
   return rec;
 }
 
@@ -727,6 +808,8 @@ let sigTech, sigClient;
       initial = { data: parsed.answers || {}, sigTech: f['Signature technicien'], sigClient: f['Signature client'] };
       // photos existantes (Airtable) en lecture seule
       (f['Photos'] || []).forEach(att => state.existingPhotos.push({ url: att.url, filename: att.filename, label: att.filename }));
+      // croquis existants (Airtable) en lecture seule (CSP : pas d'affichage direct)
+      (f['Croquis'] || []).forEach(att => state.existingCroquis.push({ url: att.url, filename: att.filename, label: att.filename }));
       state.materiel = parsed.materiel || [];
       state.taches = parsed.taches || [];
       state.splitsInt = parsed.splitsInt || [];
@@ -751,6 +834,7 @@ let sigTech, sigClient;
     try { initial = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
     if (initial) {
       state.newPhotos = initial.newPhotos || [];
+      state.newCroquis = initial.newCroquis || [];
       state.materiel = initial.materiel || [];
       state.taches = initial.taches || [];
       state.splitsInt = initial.splitsInt || [];
@@ -781,8 +865,10 @@ let sigTech, sigClient;
   if (initial?.sigClient) sigClient.fromDataURL(initial.sigClient);
   updateSeg();
   renderPhotos();
+  renderCroquis();
   renderMateriel();
   renderTaches();
+  renderDimensionnement();
   if (state.gps) document.getElementById('gpsLabel').textContent = `(${state.gps.lat.toFixed(5)}, ${state.gps.lng.toFixed(5)})`;
 
   // ===== Events =====
@@ -791,15 +877,24 @@ let sigTech, sigClient;
     renderTypeSections(e.target.value);
     applyData(cur);                      // ré-applique (les communes + celles encore présentes)
     scheduleSave();
+    renderDimensionnement();
   });
 
   document.addEventListener('input', (e) => {
     if (e.target.name === 'faisabilite') updateSeg();
     scheduleSave();
+    // Recalcul dimensionnement si un input clé change
+    if (e.target.dataset && ['surface', 'hauteurPlafond', 'nbPieces', 'isolation', 'typeProjet'].includes(e.target.dataset.key)) {
+      renderDimensionnement();
+    }
   });
-  document.addEventListener('change', scheduleSave);
+  document.addEventListener('change', (e) => {
+    scheduleSave();
+    if (e.target.dataset && ['typeProjet', 'isolation'].includes(e.target.dataset.key)) renderDimensionnement();
+  });
 
   document.getElementById('photoInput').addEventListener('change', (e) => { addPhotos([...e.target.files]); e.target.value = ''; });
+  document.getElementById('croquisAdd').addEventListener('click', openNewCroquis);
   document.getElementById('materielAdd').addEventListener('click', () => { state.materiel.push({ designation: '', quantite: '', note: '' }); renderMateriel(); });
   document.getElementById('materielSuggest').addEventListener('click', suggestMateriel);
   document.getElementById('tacheAdd').addEventListener('click', () => { state.taches.push({ label: '', done: false }); renderTaches(); });

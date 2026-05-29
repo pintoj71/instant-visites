@@ -68,6 +68,14 @@
     </label>
   </div>
 
+  <!-- Croquis & schémas -->
+  <div class="card">
+    <h2>✏️ Croquis & schémas</h2>
+    <p class="muted">Esquisse les plans, l'emplacement de l'appareil, le tracé du conduit… Tu peux poser une photo en fond et dessiner par-dessus.</p>
+    <div class="croquis-grid" id="croquisGrid"></div>
+    <button type="button" class="btn ghost small" id="croquisAdd" style="margin-top:10px;">+ Nouveau croquis</button>
+  </div>
+
   <!-- Faisabilité & conclusion -->
   <div class="card">
     <h2>🎯 Faisabilité & conclusion</h2>
@@ -91,6 +99,13 @@
     <div class="with-voice"><textarea data-key="reserves" data-voice="1" rows="3"></textarea></div>
     <label>Recommandations</label>
     <div class="with-voice"><textarea data-key="recommandations" data-voice="1" rows="3"></textarea></div>
+  </div>
+
+  <!-- Dimensionnement (indicatif, recalculé en direct) -->
+  <div class="card">
+    <h2>📐 Dimensionnement (indicatif)</h2>
+    <p class="muted">Calcul auto à partir de la surface, hauteur, isolation et type de projet saisis. Estimatif — à confirmer par BET sur les projets sensibles.</p>
+    <div id="dimensionnementBody" class="dim-grid"></div>
   </div>
 
   <!-- Préparation du chantier (fil conducteur) -->

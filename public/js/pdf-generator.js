@@ -175,6 +175,31 @@ export async function generatePdf(payload) {
   textBlock('Recommandations', payload.recommandations);
   if (payload.gps) { doc.setFontSize(8).setTextColor(...COL.grey); doc.text(`Position GPS : ${payload.gps.lat.toFixed(5)}, ${payload.gps.lng.toFixed(5)}`, M, y); y += 5; }
 
+  // ===== Dimensionnement (indicatif) =====
+  const dim = (payload.dimensionnement || []).filter(d => d && d.value);
+  if (dim.length) {
+    ensure(18);
+    y += 2;
+    doc.setFillColor(...COL.bordeaux);
+    doc.roundedRect(M, y, CW, 8, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255).setFont('helvetica', 'bold').setFontSize(10.5);
+    doc.text('DIMENSIONNEMENT (INDICATIF)', M + 4, y + 5.5);
+    y += 12;
+    doc.autoTable({
+      startY: y,
+      body: dim.map(d => [d.label, d.value]),
+      theme: 'grid',
+      bodyStyles: { fontSize: 9, textColor: COL.dark, cellPadding: 1.8 },
+      alternateRowStyles: { fillColor: [250, 246, 240] },
+      columnStyles: {
+        0: { cellWidth: CW * 0.55, fontStyle: 'bold', textColor: COL.marron },
+        1: { cellWidth: CW * 0.45 }
+      },
+      margin: { left: M, right: M }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
   // ===== Preparation du chantier (fil conducteur) =====
   const ch = payload.chantier || {};
   const chMeta = [
@@ -256,6 +281,36 @@ export async function generatePdf(payload) {
       const lab = photos[i].label || '';
       if (lab) { doc.setFontSize(7.5).setTextColor(...COL.dark); const lw = doc.splitTextToSize(lab, cellW); doc.text(lw[0], x + 1, cy + cellH + 3.5); }
       if (col === perRow - 1 || i === photos.length - 1) y = cy + cellH + 7;
+    }
+  }
+
+  // ===== Croquis & schemas =====
+  const croquis = (payload.croquis || []).filter(c => c.dataUrl);
+  if (croquis.length) {
+    ensure(12);
+    doc.setFont('helvetica', 'bold').setFontSize(11).setTextColor(...COL.marron);
+    doc.text('Croquis & schemas', M, y); y += 5;
+    const perRow = 2, gap = 4;
+    const cellW = (CW - gap * (perRow - 1)) / perRow;
+    const cellH = cellW * 0.75;
+    for (let i = 0; i < croquis.length; i++) {
+      const col = i % perRow;
+      if (col === 0) ensure(cellH + 8);
+      const x = M + col * (cellW + gap);
+      const cy = y;
+      doc.setDrawColor(...COL.creme); doc.setFillColor(255, 255, 255);
+      doc.rect(x, cy, cellW, cellH, 'S');
+      const sz = await imgSize(croquis[i].dataUrl);
+      if (sz) {
+        const r = Math.min((cellW - 2) / sz.w, (cellH - 2) / sz.h);
+        const dw = sz.w * r, dh = sz.h * r;
+        const dx = x + (cellW - dw) / 2, dy = cy + (cellH - dh) / 2;
+        try { doc.addImage(croquis[i].dataUrl, 'PNG', dx, dy, dw, dh); } catch {}
+        doc.setDrawColor(...COL.grey); doc.rect(dx, dy, dw, dh, 'S');
+      }
+      const lab = croquis[i].label || '';
+      if (lab) { doc.setFontSize(7.5).setTextColor(...COL.dark); const lw = doc.splitTextToSize(lab, cellW); doc.text(lw[0], x + 1, cy + cellH + 3.5); }
+      if (col === perRow - 1 || i === croquis.length - 1) y = cy + cellH + 7;
     }
   }
 

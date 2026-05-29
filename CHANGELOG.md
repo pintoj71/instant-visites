@@ -4,6 +4,40 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.5.0] - 2026-05-22
+
+### Ajouté — Croquis & schémas
+- Nouveau type d'entrée : **croquis dessiné** directement sur le téléphone.
+- Carte « ✏️ Croquis & schémas » avec grille de vignettes + bouton
+  « + Nouveau croquis » qui ouvre un **éditeur plein écran** :
+  - **Crayon** (3 épaisseurs) + **4 couleurs** (marron / rouge / bleu / vert)
+  - **Gomme**
+  - **Photo en fond** : charger une photo et annoter par-dessus (utile pour
+    schématiser sur une photo du tableau élec, du conduit existant, etc.)
+  - Effacer tout, Annuler, Enregistrer
+- Multi-croquis avec libellé par croquis (ex: « salon », « conduit », « tableau »).
+- Re-édition possible en cliquant la vignette.
+- Nouvelle colonne Airtable `Croquis` (multipleAttachments) sur Visites
+  techniques + endpoint `/api/upload-croquis` (même mécanique que photos).
+- Section dédiée dans le PDF (2 croquis par ligne).
+
+## [1.4.0] - 2026-05-22
+
+### Ajouté — Dimensionnement (indicatif) par type d'appareil
+- Nouvelle carte « 📐 Dimensionnement (indicatif) » qui **calcule en direct**
+  à partir des réponses (surface, hauteur, isolation, nb pièces) :
+  - **Puissance chauffage** recommandée en kW (coefficient W/m³ par niveau
+    d'isolation : Faible 80 / Moyen 60 / Bon 42 / RT2012+ 30).
+  - **Volume ECS** recommandé selon nb personnes estimé.
+  - Spécifique au type : diamètre tubage suggéré (bois/granulés/gaz),
+    **stockage granulés** (m³/an) + silo recommandé, ballon tampon
+    (chaudière bois/granulés), captage horizontal + sondes verticales
+    (PAC Eau/Eau), totaux liaisons frigo/élec + pré-charge R32
+    (PAC Air/Air, calculé depuis les splits), ballon CET selon famille.
+- Toutes les estimations marquées « indicatif — à confirmer par BET sur les
+  projets sensibles ». Override manuel possible via les champs amont.
+- Section dédiée dans le rapport PDF.
+
 ## [1.3.0] - 2026-05-22
 
 ### Ajouté — table Clients/Prospects dédiée aux visites
