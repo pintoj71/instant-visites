@@ -28,9 +28,21 @@
       <option value="">— Choisir le type d'installation —</option>
     </select>
 
-    <h3>Pré-remplir depuis un client existant (base maintenance)</h3>
-    <input type="search" id="clientSearch" placeholder="Rechercher un client (nom, ville...)" autocomplete="off">
-    <div id="clientResults"></div>
+    <h3>Client / Prospect (Visites)</h3>
+    <p class="muted" style="margin-top:-4px;">Table dédiée aux contacts des visites (séparée de l'entretien & ramonage).</p>
+    <div id="prospectChip" class="prospect-chip" style="display:none;">
+      <span class="prospect-name"></span>
+      <button type="button" class="btn ghost small" id="prospectUnlink">Délier</button>
+    </div>
+    <input type="search" id="prospectSearch" placeholder="Rechercher (nom, téléphone, ville…) ou créer" autocomplete="off">
+    <div id="prospectResults"></div>
+    <button type="button" class="btn dark small" id="prospectCreate" style="margin-top:6px;display:none;">+ Créer ce client / prospect avec les infos saisies</button>
+
+    <details class="ramonage-fold" style="margin-top:14px;">
+      <summary>Importer depuis Entretien & Ramonage (base maintenance)</summary>
+      <input type="search" id="clientSearch" placeholder="Rechercher (nom, ville, téléphone…)" autocomplete="off" style="margin-top:8px;">
+      <div id="clientResults"></div>
+    </details>
   </div>
 
   <!-- Sections communes (rendu dynamique) -->

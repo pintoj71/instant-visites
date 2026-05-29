@@ -18,7 +18,9 @@ export const BASES = { VISITES: AIRTABLE_BASE, CLIENTS: AIRTABLE_CLIENTS_BASE };
 export const TABLES = {
   VISITES: 'tbl00bDbH7524lOq1',
   TECHNICIENS: 'tblYH9sqJeyHv1eLU',
-  // Table Clients de la base maintenance (lecture seule)
+  // Table Clients/Prospects de l'activité visites (lecture/écriture, base visites)
+  PROSPECTS: 'tblDSSWq1wY3oi4qJ',
+  // Table Clients de la base maintenance (lecture seule, base distincte)
   CLIENTS: 'tblT10SJD6ilGsJK3'
 };
 
@@ -44,12 +46,23 @@ export const FIELDS = {
     refClient: 'fld1FnY6sYYNe7aRi',
     statutChantier: 'fldEG4lMbs69sGtd0',
     datePosePrevue: 'fld8xQMqmOqNJlUia',
-    equipePose: 'fldwls6jYG1RBJFIr'
+    equipePose: 'fldwls6jYG1RBJFIr',
+    clientProspect: 'fldh9UPAsWFjoM4vS'
   },
   technicien: {
     nom: 'fldhuYbKaGZdZ5QFo',
     pin: 'fldc7rq0cAunSTLl8',
     actif: 'fldMYcB04XPiCO6bR'
+  },
+  prospect: {
+    nomComplet: 'fldByejFo0JZbvmWZ',
+    telephone: 'fldu5Tj0eOuSRbqxU',
+    email: 'fldRG6dRJpRMfFxDX',
+    adresse: 'fldiCTH23ZcD4DGiq',
+    codePostal: 'fldX8BCkIzj8UixvY',
+    ville: 'fld2W3QCeHnYi6fJQ',
+    origine: 'fldNTUIHYDMU4AvT3',
+    notes: 'fldemWFZo2u38LO13'
   }
 };
 
@@ -58,7 +71,14 @@ export const VISITE_WRITABLE = new Set([
   'Client', 'Téléphone', 'Email', 'Adresse', 'Type de logement', 'Type de projet',
   'Date visite', 'Technicien', 'Statut', 'Faisabilité', 'Estimation budgétaire',
   'Délai indicatif', 'Réponses (JSON)', 'Signature technicien', 'Signature client',
-  'Réf. client (Abonnements)', 'Statut chantier', 'Date pose prévue', 'Équipe pose'
+  'Réf. client (Abonnements)', 'Statut chantier', 'Date pose prévue', 'Équipe pose',
+  'Client/Prospect'
+]);
+
+// Noms de champs autorisés en écriture sur un prospect/client (whitelist stricte)
+export const PROSPECT_WRITABLE = new Set([
+  'Nom complet', 'Téléphone', 'Email', 'Adresse', 'Code postal', 'Ville',
+  'Origine', 'Notes'
 ]);
 
 /* ========== VALIDATION ========== */

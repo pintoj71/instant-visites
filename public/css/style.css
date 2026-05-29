@@ -291,6 +291,21 @@ details.section .section-body { padding: 12px 14px; }
   box-shadow: inset 0 0 0 2px var(--accent); background: #fdf1e6; color: var(--primary-2);
 }
 
+/* Pastille du client/prospect lié */
+.prospect-chip {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 8px 12px 8px 14px; background: #e2efd9; color: #2f5320;
+  border-radius: 20px; font-weight: 700; font-size: 13px; margin: 6px 0;
+}
+.prospect-chip::before { content: '👤'; }
+.prospect-chip .btn { background: transparent; color: #2f5320; }
+.prospect-chip .btn:hover { background: rgba(47,83,32,0.10); }
+
+/* Bloc maintenance (déplié à la demande) */
+.ramonage-fold { border-top: 1px dashed var(--border); padding-top: 8px; }
+.ramonage-fold > summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 4px 0; }
+.ramonage-fold > summary::marker { color: var(--muted); }
+
 /* Liste répétable d'unités intérieures (PAC Air/Air) */
 .unit-list .split-row {
   margin-top: 10px; padding: 10px; background: var(--surface);
