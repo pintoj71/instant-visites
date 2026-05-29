@@ -4,6 +4,23 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.6.3] - 2026-05-29
+
+### Modifié — PINs techniciens lisibles en clair dans Airtable
+- Le champ `PIN` de la table **Techniciens** peut maintenant contenir le PIN
+  **en clair** (ex: `1234`). Plus besoin de passer par un outil de hash : on
+  saisit le PIN directement dans Airtable et c'est utilisable immédiatement.
+- **Rétro-compatibilité totale** : si la valeur stockée ressemble à un hash
+  SHA-256 hex (64 caractères `[a-f0-9]`), `login.js` continue à comparer le
+  hash du PIN saisi avec la valeur stockée. Les comptes existants avec un
+  PIN hashé continuent de fonctionner sans modification.
+- Comparaison **timing-safe** dans les deux cas (`crypto.timingSafeEqual`).
+- Le rate-limit anti-bruteforce (5 échecs / 15 min via Netlify Blobs) et le
+  PIN global de secours (`APP_PIN`) restent en place.
+- ⚠️ Tradeoff sécurité : un PIN en clair est visible dans l'UI Airtable —
+  considérer qui a accès à la base avant de l'adopter. Le hash reste
+  disponible si tu préfères ne pas exposer le PIN.
+
 ## [1.6.2] - 2026-05-29
 
 ### Ajouté — Info-bulles cliquables (ⓘ) sur les champs
