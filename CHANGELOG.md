@@ -4,6 +4,37 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.2.0] - 2026-05-22
+
+### Corrigé
+- **PDF d'aperçu** : ouvrait une **page blanche** sur mobile
+  (`dataurlnewwindow` mal supporté par les data-URL longues). Remplacé par un
+  téléchargement du PDF d'aperçu (préfixe `apercu-`), comme à la validation.
+
+### Ajouté — fluidité de saisie
+- **Sections communes ouvertes par défaut** (Client/Accès/Électricité) : plus
+  besoin de déplier à chaque visite.
+- **Boutons segmentés** pour tous les choix courts Oui / Non / À vérifier et
+  autres listes 2-4 options (logement, isolation, état conduit, devoiement,
+  alim gaz, etc.) → **1 tap au lieu de 3** (ouvrir le select / choisir / fermer).
+- **Clavier adapté au mobile** (`inputmode`) sur les champs texte numériques :
+  année, surface terrain, diamètre conduit, puissance, distance, etc.
+
+### Ajouté — PAC Air/Air : détail par unité intérieure
+- Nouveau type de champ `unit-list` : la section « Unités intérieures (Air/Air) »
+  devient une **liste répétable**, **1 ligne = 1 split**, avec :
+  - emplacement / pièce
+  - type (Mural / Cassette / Console / Gainable, en boutons)
+  - longueurs **liaison frigo** et **câble élec** propres à chaque unité
+  - puissance optionnelle (kW)
+- Tableau récapitulatif (avec **totaux frigo / élec**) ajouté au PDF.
+
+### Modifié
+- `VERSION` du Service Worker → v1.2.0 ; `package.json` → 1.2.0.
+- Ancien bloc « Unités intérieures » (champs uniques globaux) remplacé par la
+  liste détaillée — `nbUnitesInt`, `typeUnites`, `empSplits` retirés (présents
+  dans l'ancien JSON, ignorés sans erreur).
+
 ## [1.1.0] - 2026-05-22
 
 ### Ajouté — la visite devient le fil conducteur du chantier

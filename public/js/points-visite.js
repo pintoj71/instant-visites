@@ -4,13 +4,19 @@
 // le référencer dans SECTIONS_BY_TYPE. Rien d'autre à toucher.
 //
 // Schéma d'un champ :
-//   { key, label, type, options?, placeholder?, hint?, voice?, full?, step? }
-//   type ∈ text | tel | email | number | date | textarea | select
+//   { key, label, type, options?, placeholder?, hint?, voice?, full?, step?, inputMode? }
+//   type ∈ text | tel | email | number | date | textarea | select | segmented | unit-list
+//   - `segmented`  : groupe de boutons radio (1 tap, idéal pour Oui/Non/À vérifier)
+//   - `unit-list`  : liste répétable d'unités (PAC Air/Air : 1 ligne par split)
+//   - `inputMode`  : 'numeric' | 'decimal' → bon clavier mobile sur les champs texte
 // Les `key` doivent rester STABLES (servent de clé de stockage JSON).
 // ============================================================================
 
 const ON = ['Oui', 'Non'];
 const ON_AV = ['Oui', 'Non', 'À vérifier'];
+
+// ---- Types d'unités intérieures pour PAC Air/Air (segmented par split) ----
+export const SPLIT_TYPES = ['Mural', 'Cassette', 'Console', 'Gainable'];
 
 // ---- Liste exhaustive des types de projet (= options Airtable "Type de projet") ----
 export const TYPES_PROJET = [
@@ -34,36 +40,36 @@ export const COMMON_SECTIONS = [
       { key: 'telephone', label: 'Téléphone', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'adresse', label: 'Adresse', type: 'textarea', full: true },
-      { key: 'typeLogement', label: 'Type de logement', type: 'select', options: ['Maison', 'Appartement'] },
-      { key: 'anneeConstruction', label: 'Année de construction', type: 'text' },
+      { key: 'typeLogement', label: 'Type de logement', type: 'segmented', options: ['Maison', 'Appartement'] },
+      { key: 'anneeConstruction', label: 'Année de construction', type: 'text', inputMode: 'numeric' },
       { key: 'surface', label: 'Surface à chauffer (m2)', type: 'number' },
       { key: 'nbPieces', label: 'Nombre de pièces', type: 'number' },
       { key: 'hauteurPlafond', label: 'Hauteur sous plafond (m)', type: 'number', step: '0.1' },
-      { key: 'isolation', label: "Niveau d'isolation", type: 'select', options: ['Faible', 'Moyen', 'Bon', 'RT2012+'] }
+      { key: 'isolation', label: "Niveau d'isolation", type: 'segmented', options: ['Faible', 'Moyen', 'Bon', 'RT2012+'] }
     ]
   },
   {
-    id: 'acces', title: 'Accès chantier', icon: '🚚', open: false,
+    id: 'acces', title: 'Accès chantier', icon: '🚚', open: true,
     fields: [
-      { key: 'etage', label: 'Étage', type: 'text' },
-      { key: 'ascenseur', label: 'Ascenseur', type: 'select', options: ON },
-      { key: 'stationnement', label: 'Stationnement', type: 'select', options: ['Aisé', 'Limité', 'Difficile'] },
-      { key: 'largeurAcces', label: 'Largeur portes / couloirs (cm)', type: 'text' },
-      { key: 'distancePortage', label: 'Distance de portage (m)', type: 'text' },
-      { key: 'copropriete', label: 'Copropriété', type: 'select', options: ON },
-      { key: 'zoneABF', label: 'Zone classée / ABF', type: 'select', options: ON_AV },
+      { key: 'etage', label: 'Étage', type: 'text', inputMode: 'numeric' },
+      { key: 'ascenseur', label: 'Ascenseur', type: 'segmented', options: ON },
+      { key: 'stationnement', label: 'Stationnement', type: 'segmented', options: ['Aisé', 'Limité', 'Difficile'] },
+      { key: 'largeurAcces', label: 'Largeur portes / couloirs (cm)', type: 'text', inputMode: 'numeric' },
+      { key: 'distancePortage', label: 'Distance de portage (m)', type: 'text', inputMode: 'decimal' },
+      { key: 'copropriete', label: 'Copropriété', type: 'segmented', options: ON },
+      { key: 'zoneABF', label: 'Zone classée / ABF', type: 'segmented', options: ON_AV },
       { key: 'accesNotes', label: "Contraintes d'accès / livraison", type: 'textarea', voice: true, full: true }
     ]
   },
   {
-    id: 'electricite', title: 'Électricité', icon: '⚡', open: false,
+    id: 'electricite', title: 'Électricité', icon: '⚡', open: true,
     fields: [
-      { key: 'typeCompteur', label: 'Type de compteur', type: 'select', options: ['Monophasé', 'Triphasé', 'Inconnu'] },
-      { key: 'puissanceSouscrite', label: 'Puissance souscrite (kVA)', type: 'text' },
-      { key: 'disjoncteurDedie', label: 'Disjoncteur dédié disponible', type: 'select', options: ON_AV },
-      { key: 'tableauProximite', label: 'Tableau à proximité', type: 'select', options: ON },
-      { key: 'sectionCable', label: 'Section de câble (mm2)', type: 'text' },
-      { key: 'miseTerre', label: 'Mise à la terre', type: 'select', options: ON_AV },
+      { key: 'typeCompteur', label: 'Type de compteur', type: 'segmented', options: ['Monophasé', 'Triphasé', 'Inconnu'] },
+      { key: 'puissanceSouscrite', label: 'Puissance souscrite (kVA)', type: 'text', inputMode: 'decimal' },
+      { key: 'disjoncteurDedie', label: 'Disjoncteur dédié disponible', type: 'segmented', options: ON_AV },
+      { key: 'tableauProximite', label: 'Tableau à proximité', type: 'segmented', options: ON },
+      { key: 'sectionCable', label: 'Section de câble (mm2)', type: 'text', inputMode: 'decimal' },
+      { key: 'miseTerre', label: 'Mise à la terre', type: 'segmented', options: ON_AV },
       { key: 'elecNotes', label: 'Observations électriques', type: 'textarea', voice: true, full: true }
     ]
   }
@@ -74,16 +80,16 @@ export const TYPE_BLOCKS = {
   bois: {
     id: 'bois', title: 'Conduit & sécurité (bois / granulés)', icon: '🔥',
     fields: [
-      { key: 'conduitExistant', label: 'Conduit existant', type: 'select', options: ON },
+      { key: 'conduitExistant', label: 'Conduit existant', type: 'segmented', options: ON },
       { key: 'conduitType', label: 'Type de conduit', type: 'select', options: ['Maçonné / boisseau', 'Métallique isolé', 'Inox tubé', 'Autre'] },
       { key: 'conduitMateriau', label: 'Matériau', type: 'text' },
-      { key: 'conduitDiametre', label: 'Diamètre (mm)', type: 'text' },
-      { key: 'conduitHauteur', label: 'Hauteur (m)', type: 'text' },
-      { key: 'devoiement', label: 'Dévoiement', type: 'select', options: ['Aucun', '1 dévoiement', '2 dévoiements'] },
-      { key: 'etatConduit', label: 'État du conduit', type: 'select', options: ['Bon', 'Moyen', 'Mauvais'] },
-      { key: 'tubageNecessaire', label: 'Tubage nécessaire', type: 'select', options: ON_AV },
-      { key: 'protectionSol', label: 'Protection du sol', type: 'select', options: ['Existante', 'À prévoir', 'Sans objet'] },
-      { key: 'ameneeAir', label: "Arrivée d'air comburant", type: 'select', options: ['Directe', 'Indirecte', 'À créer'] },
+      { key: 'conduitDiametre', label: 'Diamètre (mm)', type: 'text', inputMode: 'numeric' },
+      { key: 'conduitHauteur', label: 'Hauteur (m)', type: 'text', inputMode: 'decimal' },
+      { key: 'devoiement', label: 'Dévoiement', type: 'segmented', options: ['Aucun', '1 dévoiement', '2 dévoiements'] },
+      { key: 'etatConduit', label: 'État du conduit', type: 'segmented', options: ['Bon', 'Moyen', 'Mauvais'] },
+      { key: 'tubageNecessaire', label: 'Tubage nécessaire', type: 'segmented', options: ON_AV },
+      { key: 'protectionSol', label: 'Protection du sol', type: 'segmented', options: ['Existante', 'À prévoir', 'Sans objet'] },
+      { key: 'ameneeAir', label: "Arrivée d'air comburant", type: 'segmented', options: ['Directe', 'Indirecte', 'À créer'] },
       { key: 'distancesSecurite', label: 'Distances de sécurité aux matériaux combustibles', type: 'textarea', voice: true, full: true },
       { key: 'emplacementBois', label: "Emplacement pressenti de l'appareil", type: 'textarea', voice: true, full: true }
     ]
@@ -101,17 +107,17 @@ export const TYPE_BLOCKS = {
     id: 'hydraulique', title: 'Circuit hydraulique', icon: '💧',
     fields: [
       { key: 'emetteurs', label: 'Émetteurs existants', type: 'select', options: ['Radiateurs', 'Plancher chauffant', 'Ventilo-convecteurs', 'Mixte', 'Aucun'] },
-      { key: 'tempDepart', label: "Température de départ d'eau (degres C)", type: 'text' },
-      { key: 'circuit', label: 'État du circuit hydraulique', type: 'select', options: ['Bon état', 'À adapter', 'À refaire'] },
-      { key: 'ballonECS', label: 'Ballon ECS', type: 'select', options: ['Oui intégré', 'Oui séparé', 'Non'] },
-      { key: 'volumeECS', label: 'Volume ECS (L)', type: 'text' },
+      { key: 'tempDepart', label: "Température de départ d'eau (degres C)", type: 'text', inputMode: 'numeric' },
+      { key: 'circuit', label: 'État du circuit hydraulique', type: 'segmented', options: ['Bon état', 'À adapter', 'À refaire'] },
+      { key: 'ballonECS', label: 'Ballon ECS', type: 'segmented', options: ['Oui intégré', 'Oui séparé', 'Non'] },
+      { key: 'volumeECS', label: 'Volume ECS (L)', type: 'text', inputMode: 'numeric' },
       { key: 'hydroNotes', label: 'Observations circuit / raccordement', type: 'textarea', voice: true, full: true }
     ]
   },
   gaz: {
     id: 'gaz', title: 'Alimentation & évacuation gaz', icon: '🔵',
     fields: [
-      { key: 'alimGaz', label: 'Alimentation gaz existante', type: 'select', options: ['Gaz de ville', 'Citerne propane', 'À créer'] },
+      { key: 'alimGaz', label: 'Alimentation gaz existante', type: 'segmented', options: ['Gaz de ville', 'Citerne propane', 'À créer'] },
       { key: 'typeEvac', label: "Type d'évacuation", type: 'select', options: ['Ventouse (type C)', 'Cheminée (type B)', 'VMC gaz'] },
       { key: 'conduitGaz', label: 'Conduit / débouché', type: 'text' },
       { key: 'emplacementChaufferie', label: 'Emplacement chaufferie', type: 'textarea', voice: true, full: true }
@@ -120,10 +126,10 @@ export const TYPE_BLOCKS = {
   unite_ext_air: {
     id: 'unite_ext_air', title: 'Unité extérieure & liaisons', icon: '🌀',
     fields: [
-      { key: 'distanceVoisinage', label: 'Distance au voisinage (m) — bruit', type: 'text' },
-      { key: 'liaisonFrigo', label: 'Longueur liaison frigorifique (m)', type: 'text' },
-      { key: 'evacCondensats', label: 'Évacuation des condensats', type: 'select', options: ['Vers évacuation', 'Pompe de relevage', 'À créer'] },
-      { key: 'alimElecUnite', label: 'Alimentation électrique unité', type: 'select', options: ['Existante', 'À créer'] },
+      { key: 'distanceVoisinage', label: 'Distance au voisinage (m) — bruit', type: 'text', inputMode: 'decimal' },
+      { key: 'liaisonFrigo', label: 'Longueur liaison frigorifique TOTALE (m)', type: 'text', inputMode: 'decimal', hint: 'Pour multi-split, voir le détail par unité ci-dessous' },
+      { key: 'evacCondensats', label: 'Évacuation des condensats', type: 'segmented', options: ['Vers évacuation', 'Pompe de relevage', 'À créer'] },
+      { key: 'alimElecUnite', label: 'Alimentation électrique unité', type: 'segmented', options: ['Existante', 'À créer'] },
       { key: 'empUniteExt', label: 'Emplacement unité extérieure', type: 'textarea', voice: true, full: true }
     ]
   },
@@ -131,27 +137,25 @@ export const TYPE_BLOCKS = {
     id: 'captage', title: 'Captage (Eau/Eau)', icon: '🌍',
     fields: [
       { key: 'typeCaptage', label: 'Type de captage', type: 'select', options: ['Horizontal', 'Sondes verticales', 'Sur nappe'] },
-      { key: 'surfaceTerrain', label: 'Surface terrain disponible (m2)', type: 'text' },
-      { key: 'profondeur', label: 'Profondeur sondes / forage (m)', type: 'text' },
+      { key: 'surfaceTerrain', label: 'Surface terrain disponible (m2)', type: 'text', inputMode: 'decimal' },
+      { key: 'profondeur', label: 'Profondeur sondes / forage (m)', type: 'text', inputMode: 'decimal' },
       { key: 'captageNotes', label: 'Contraintes captage / autorisations', type: 'textarea', voice: true, full: true }
     ]
   },
   splits: {
     id: 'splits', title: 'Unités intérieures (Air/Air)', icon: '❄️',
     fields: [
-      { key: 'nbUnitesInt', label: "Nombre d'unités intérieures", type: 'number' },
-      { key: 'typeUnites', label: "Type d'unités", type: 'select', options: ['Muraux', 'Cassette', 'Gainable', 'Console', 'Mixte'] },
-      { key: 'configSplit', label: 'Configuration', type: 'select', options: ['Monosplit', 'Multisplit', 'Gainable'] },
-      { key: 'empSplits', label: 'Emplacement de chaque split', type: 'textarea', voice: true, full: true }
+      { key: 'configSplit', label: 'Configuration', type: 'segmented', options: ['Monosplit', 'Multisplit', 'Gainable'] },
+      { key: 'splitsInt', label: 'Détail par unité intérieure (1 ligne = 1 split)', type: 'unit-list', full: true }
     ]
   },
   cet: {
     id: 'cet', title: 'Chauffe-eau thermodynamique', icon: '🚿',
     fields: [
-      { key: 'volumeBallon', label: 'Volume du ballon', type: 'select', options: ['200 L', '270 L', '300 L', 'Autre'] },
+      { key: 'volumeBallon', label: 'Volume du ballon', type: 'segmented', options: ['200 L', '270 L', '300 L', 'Autre'] },
       { key: 'sourceAir', label: "Source d'air", type: 'select', options: ['Air ambiant', 'Air extérieur gainé', 'Air extrait'] },
-      { key: 'volumeLocal', label: 'Volume du local (m3) — min 20 m3 si air ambiant', type: 'text' },
-      { key: 'evacCondensatsCet', label: 'Évacuation des condensats', type: 'select', options: ['Vers évacuation', 'Pompe de relevage', 'À créer'] },
+      { key: 'volumeLocal', label: 'Volume du local (m3) — min 20 m3 si air ambiant', type: 'text', inputMode: 'decimal' },
+      { key: 'evacCondensatsCet', label: 'Évacuation des condensats', type: 'segmented', options: ['Vers évacuation', 'Pompe de relevage', 'À créer'] },
       { key: 'empCet', label: 'Emplacement', type: 'textarea', voice: true, full: true }
     ]
   }

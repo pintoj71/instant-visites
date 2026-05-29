@@ -2,7 +2,7 @@ import { api, toast, escapeHtml, getOptionName } from '/js/api.js';
 import { initSignaturePad } from '/js/signature.js';
 import { generatePdf } from '/js/pdf-generator.js';
 import {
-  TYPES_PROJET, COMMON_SECTIONS, blocksForType, CHANTIER_STATUTS, materielFor
+  TYPES_PROJET, COMMON_SECTIONS, blocksForType, CHANTIER_STATUTS, materielFor, SPLIT_TYPES
 } from '/js/points-visite.js';
 
 const params = new URLSearchParams(location.search);
@@ -12,6 +12,7 @@ const state = {
   existingPhotos: [],    // { url|dataUrl, label, filename }
   materiel: [],          // { designation, quantite, note }
   taches: [],            // { label, done }
+  splitsInt: [],         // PAC Air/Air : { emplacement, type, frigoM, elecM, puissance }
   gps: null,
   userName: '',
   quotaWarned: false
@@ -25,7 +26,8 @@ const meReady = api.get('/me')
 
 // ===== Rendu des champs =====
 function renderField(f) {
-  const common = `data-key="${f.key}"${f.step ? ` step="${f.step}"` : ''}`;
+  const inputMode = f.inputMode ? ` inputmode="${f.inputMode}"` : '';
+  const common = `data-key="${f.key}"${f.step ? ` step="${f.step}"` : ''}${inputMode}`;
   let control;
   if (f.type === 'textarea') {
     control = f.voice
@@ -35,6 +37,12 @@ function renderField(f) {
     const opts = ['<option value="">--</option>']
       .concat((f.options || []).map(o => `<option>${escapeHtml(o)}</option>`)).join('');
     control = `<select ${common}>${opts}</select>`;
+  } else if (f.type === 'segmented') {
+    control = `<div class="seg seg-inline">` + (f.options || []).map(o => `
+      <label><input type="radio" name="${f.key}" data-key="${f.key}" value="${escapeHtml(o)}"><span>${escapeHtml(o)}</span></label>`).join('') + `</div>`;
+  } else if (f.type === 'unit-list') {
+    control = `<div id="${f.key}List" class="unit-list"></div>
+      <button class="btn ghost small" type="button" id="${f.key}Add" style="margin-top:6px;">+ Ajouter une unité intérieure</button>`;
   } else {
     control = `<input type="${f.type}" ${common}${f.placeholder ? ` placeholder="${escapeHtml(f.placeholder)}"` : ''}>`;
   }
@@ -57,6 +65,7 @@ function renderTypeSections(type) {
   cont.innerHTML = blocks.map(b => renderSection(b, true)).join('');
   document.getElementById('typeHint').style.display = (type && blocks.length === 0) || !type ? 'block' : 'none';
   attachVoiceButtons(cont);
+  wireSplitsInt(); // PAC Air/Air : liste répétable des splits si présente
 }
 
 // ===== Données (collect / apply) =====
@@ -246,6 +255,46 @@ function renderTaches() {
   });
 }
 
+// ===== Unités intérieures PAC Air/Air (1 ligne = 1 split) =====
+function renderSplitsInt() {
+  const list = document.getElementById('splitsIntList');
+  if (!list) return;
+  list.innerHTML = state.splitsInt.map((u, i) => `
+    <div class="split-row">
+      <div class="split-head">
+        <strong>Unité ${i + 1}</strong>
+        <button type="button" class="del" data-spidel="${i}" title="Supprimer">×</button>
+      </div>
+      <input type="text" class="split-place" data-spi="${i}" data-f="emplacement" placeholder="Pièce / emplacement (ex: salon)" value="${escapeHtml(u.emplacement || '')}">
+      <div class="seg seg-inline split-types">
+        ${SPLIT_TYPES.map(t => `<label><input type="radio" name="spi${i}type" data-spi="${i}" data-f="type" value="${t}"${u.type === t ? ' checked' : ''}><span>${t}</span></label>`).join('')}
+      </div>
+      <div class="split-metrics">
+        <input type="text" inputmode="decimal" data-spi="${i}" data-f="frigoM" placeholder="Frigo (m)" value="${escapeHtml(u.frigoM || '')}">
+        <input type="text" inputmode="decimal" data-spi="${i}" data-f="elecM" placeholder="Élec (m)" value="${escapeHtml(u.elecM || '')}">
+        <input type="text" inputmode="decimal" data-spi="${i}" data-f="puissance" placeholder="Puissance (kW)" value="${escapeHtml(u.puissance || '')}">
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('input[data-spi]').forEach(inp => {
+    const ev = inp.type === 'radio' ? 'change' : 'input';
+    inp.addEventListener(ev, () => {
+      if (inp.type === 'radio' && !inp.checked) return;
+      state.splitsInt[+inp.dataset.spi][inp.dataset.f] = inp.value;
+      scheduleSave();
+    });
+  });
+  list.querySelectorAll('button[data-spidel]').forEach(b => {
+    b.addEventListener('click', () => { state.splitsInt.splice(+b.dataset.spidel, 1); renderSplitsInt(); scheduleSave(); });
+  });
+}
+
+function wireSplitsInt() {
+  const addBtn = document.getElementById('splitsIntAdd');
+  if (!addBtn) return; // pas une visite PAC Air/Air
+  addBtn.addEventListener('click', () => { state.splitsInt.push({ emplacement: '', type: '', frigoM: '', elecM: '', puissance: '' }); renderSplitsInt(); scheduleSave(); });
+  renderSplitsInt();
+}
+
 // ===== Sauvegarde locale (autosave) =====
 let saveTimer;
 function snapshot() {
@@ -257,6 +306,7 @@ function snapshot() {
     newPhotos: state.newPhotos,
     materiel: state.materiel,
     taches: state.taches,
+    splitsInt: state.splitsInt,
     gps: state.gps
   };
 }
@@ -358,6 +408,7 @@ function buildFields(statut) {
       photoLabels: state.newPhotos.map(p => p.label).filter(Boolean),
       materiel: state.materiel.filter(m => (m.designation || '').trim()),
       taches: state.taches.filter(t => (t.label || '').trim()),
+      splitsInt: state.splitsInt.filter(u => (u.emplacement || u.type || u.frigoM || u.elecM || '').toString().trim()),
       gps: state.gps
     }),
     'Signature technicien': sigTech.isEmpty() ? '' : sigTech.toDataURL(),
@@ -401,6 +452,7 @@ function buildPdfPayload() {
       materiel: state.materiel.filter(m => (m.designation || '').trim()),
       taches: state.taches.filter(t => (t.label || '').trim())
     },
+    splitsInt: state.splitsInt.filter(u => (u.emplacement || u.type || u.frigoM || u.elecM || '').toString().trim()),
     gps: state.gps,
     photos,
     sigTech: sigTech.isEmpty() ? '' : sigTech.toDataURL(),
@@ -456,11 +508,14 @@ async function onDraft() {
 }
 
 async function onPreview() {
+  // Sur mobile, doc.output('dataurlnewwindow') ouvre souvent une page blanche
+  // (data URL trop longue, blocage popup) → on télécharge le PDF, l'OS l'ouvre.
   const btn = document.getElementById('previewBtn');
   busy(btn, 'PDF...');
   try {
     const doc = await generatePdf(buildPdfPayload());
-    doc.output('dataurlnewwindow');
+    doc.save('apercu-' + pdfFilename(collectData()));
+    toast('PDF d\'aperçu téléchargé', 'success');
   } catch (e) { console.error(e); toast('Erreur PDF: ' + e.message, 'danger'); }
   finally { unbusy(btn); }
 }
@@ -568,6 +623,7 @@ let sigTech, sigClient;
       (f['Photos'] || []).forEach(att => state.existingPhotos.push({ url: att.url, filename: att.filename, label: att.filename }));
       state.materiel = parsed.materiel || [];
       state.taches = parsed.taches || [];
+      state.splitsInt = parsed.splitsInt || [];
       if (parsed.gps) state.gps = parsed.gps;
       // Les colonnes Airtable (modifiables côté Airtable) font autorité au ré-affichage
       colOverride = {
@@ -582,6 +638,7 @@ let sigTech, sigClient;
       state.newPhotos = initial.newPhotos || [];
       state.materiel = initial.materiel || [];
       state.taches = initial.taches || [];
+      state.splitsInt = initial.splitsInt || [];
       state.gps = initial.gps || null;
     }
   }

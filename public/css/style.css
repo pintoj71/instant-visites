@@ -282,6 +282,31 @@ details.section .section-body { padding: 12px 14px; }
 .seg label.sel-conditions { box-shadow: inset 0 0 0 2px var(--warning); background: #fdf6e6; }
 .seg label.sel-non { box-shadow: inset 0 0 0 2px var(--danger); background: #fdeceb; }
 
+/* Variante compacte (Oui/Non/À vérifier dans les sections de visite) */
+.seg.seg-inline { gap: 4px; }
+.seg.seg-inline label {
+  min-width: 0; padding: 9px 8px; font-size: 12.5px; flex: 1;
+}
+.seg.seg-inline label:has(input:checked) {
+  box-shadow: inset 0 0 0 2px var(--accent); background: #fdf1e6; color: var(--primary-2);
+}
+
+/* Liste répétable d'unités intérieures (PAC Air/Air) */
+.unit-list .split-row {
+  margin-top: 10px; padding: 10px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.split-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.split-head strong { color: var(--primary-2); font-size: 13px; }
+.split-head .del {
+  border: none; background: transparent; color: var(--danger);
+  font-size: 20px; line-height: 1; padding: 2px 8px; cursor: pointer; border-radius: 6px;
+}
+.split-head .del:hover { background: rgba(192,57,43,0.10); }
+.split-place { width: 100%; margin-bottom: 6px; }
+.split-metrics { display: flex; gap: 6px; margin-top: 6px; }
+.split-metrics input { flex: 1; min-width: 0; }
+
 /* Photos */
 .photos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px; }
 .photo-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
