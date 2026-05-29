@@ -4,6 +4,31 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.3.0] - 2026-05-22
+
+### Ajouté — table Clients/Prospects dédiée aux visites
+- Nouvelle table Airtable **`Clients/Prospects`** dans la base des visites,
+  séparée de la base maintenance Entretien & Ramonage.
+  Champs : Nom complet · Téléphone · Email · Adresse · CP · Ville ·
+  Origine (Prospect / Devis envoyé / Client / Recommandation / Site internet /
+  Téléphone) · Notes.
+- Nouveau champ `Client/Prospect` (lien) sur « Visites techniques » → 1 fiche
+  client = N visites/chantiers, historique propre par client.
+- Endpoint `/api/prospects` : GET (recherche), GET/:id (lecture pour ré-affichage),
+  POST (création). Whitelist d'écriture stricte (`PROSPECT_WRITABLE`).
+- Formulaire visite : nouveau bloc **« Client / Prospect (Visites) »** —
+  recherche dans la table dédiée, bouton **« + Créer ce client/prospect avec
+  les infos saisies »**, pastille verte du client lié + bouton Délier.
+- L'ancienne recherche **« Entretien & Ramonage »** (base maintenance) reste
+  disponible mais repliée sous un volet secondaire (`<details>`), clarifiant
+  la séparation entre maintenance et prospects/clients visites.
+
+### Modifié
+- `VERSION` du Service Worker → v1.3.0 ; `package.json` → 1.3.0.
+- `_lib.js` : ajout de `TABLES.PROSPECTS`, `FIELDS.prospect`, `PROSPECT_WRITABLE`,
+  champ `clientProspect` sur la visite, `'Client/Prospect'` ajouté à
+  `VISITE_WRITABLE`.
+
 ## [1.2.0] - 2026-05-22
 
 ### Corrigé

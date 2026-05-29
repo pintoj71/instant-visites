@@ -13,6 +13,8 @@ const state = {
   materiel: [],          // { designation, quantite, note }
   taches: [],            // { label, done }
   splitsInt: [],         // PAC Air/Air : { emplacement, type, frigoM, elecM, puissance }
+  clientProspectId: null,    // ID de la fiche Client/Prospect liée (table dédiée visites)
+  clientProspectName: '',
   gps: null,
   userName: '',
   quotaWarned: false
@@ -307,6 +309,8 @@ function snapshot() {
     materiel: state.materiel,
     taches: state.taches,
     splitsInt: state.splitsInt,
+    clientProspectId: state.clientProspectId,
+    clientProspectName: state.clientProspectName,
     gps: state.gps
   };
 }
@@ -415,6 +419,7 @@ function buildFields(statut) {
     'Signature client': sigClient.isEmpty() ? '' : sigClient.toDataURL()
   };
   if (state.refClient) f['Réf. client (Abonnements)'] = state.refClient;
+  if (state.clientProspectId) f['Client/Prospect'] = [state.clientProspectId];
   Object.keys(f).forEach(k => { if (f[k] === '' || f[k] == null) delete f[k]; });
   return f;
 }
@@ -546,7 +551,108 @@ async function onFinalize() {
   }
 }
 
-// ===== Recherche client (pré-remplissage) =====
+// ===== Client/Prospect (table dédiée Visites) =====
+function linkProspect(id, fields) {
+  state.clientProspectId = id;
+  state.clientProspectName = (fields && fields['Nom complet']) || 'Client lié';
+  refreshProspectChip();
+  // Pré-remplir les champs vides de la fiche visite
+  if (fields) {
+    setVal('client', fields['Nom complet']);
+    setVal('telephone', fields['Téléphone']);
+    setVal('email', fields['Email']);
+    const adr = [fields['Adresse'] || '', `${fields['Code postal'] || ''} ${fields['Ville'] || ''}`.trim()].filter(Boolean).join('\n');
+    setVal('adresse', adr);
+  }
+  scheduleSave();
+}
+
+function refreshProspectChip() {
+  const chip = document.getElementById('prospectChip');
+  if (!chip) return;
+  if (state.clientProspectId) {
+    chip.querySelector('.prospect-name').textContent = state.clientProspectName || 'Client lié';
+    chip.style.display = 'inline-flex';
+    const cBtn = document.getElementById('prospectCreate');
+    if (cBtn) cBtn.style.display = 'none';
+  } else {
+    chip.style.display = 'none';
+  }
+}
+
+let prospectTimer;
+function wireProspectSearch() {
+  const inp = document.getElementById('prospectSearch');
+  const res = document.getElementById('prospectResults');
+  const createBtn = document.getElementById('prospectCreate');
+  const unlinkBtn = document.getElementById('prospectUnlink');
+  if (!inp) return;
+
+  inp.addEventListener('input', () => {
+    clearTimeout(prospectTimer);
+    const q = inp.value.trim();
+    createBtn.style.display = (!state.clientProspectId && q.length >= 2) ? 'inline-flex' : 'none';
+    if (q.length < 2) { res.innerHTML = ''; return; }
+    prospectTimer = setTimeout(async () => {
+      try {
+        const { records } = await api.get(`/prospects?q=${encodeURIComponent(q)}`);
+        if (!records.length) {
+          res.innerHTML = '<p class="muted">Aucun client/prospect trouvé. Cliquez sur « Créer » pour l\'ajouter.</p>';
+          return;
+        }
+        res.innerHTML = records.map(r => {
+          const f = r.fields;
+          const meta = [f['Ville'] || '', f['Code postal'] || '', f['Téléphone'] || ''].filter(Boolean).join(' · ');
+          return `<div class="visite-item" data-pid="${r.id}">
+            <div class="info">
+              <div class="name">${escapeHtml(f['Nom complet'] || '')}</div>
+              <div class="meta">${escapeHtml(meta)}</div>
+            </div>
+            <span class="badge">Choisir</span>
+          </div>`;
+        }).join('');
+        res.querySelectorAll('[data-pid]').forEach(el => {
+          el.addEventListener('click', () => {
+            const r = records.find(x => x.id === el.dataset.pid);
+            linkProspect(r.id, r.fields);
+            res.innerHTML = '';
+            inp.value = '';
+            createBtn.style.display = 'none';
+            toast('Client/prospect lié', 'success');
+          });
+        });
+      } catch { /* silencieux */ }
+    }, 300);
+  });
+
+  createBtn.addEventListener('click', async () => {
+    const d = collectData();
+    const nom = (d.client || inp.value || '').trim();
+    if (!nom) { toast('Saisir le nom du client (section ci-dessous) avant de créer', 'danger'); return; }
+    busy(createBtn, 'Création...');
+    try {
+      const fields = { 'Nom complet': nom, 'Origine': 'Prospect' };
+      if (d.telephone) fields['Téléphone'] = d.telephone;
+      if (d.email) fields['Email'] = d.email;
+      if (d.adresse) fields['Adresse'] = d.adresse;
+      const { prospect } = await api.post('/prospects', { fields });
+      linkProspect(prospect.id, prospect.fields);
+      inp.value = '';
+      res.innerHTML = '';
+      toast('Client/prospect créé et lié', 'success');
+    } catch (e) { toast('Erreur création: ' + e.message, 'danger'); }
+    finally { unbusy(createBtn); }
+  });
+
+  unlinkBtn.addEventListener('click', () => {
+    state.clientProspectId = null;
+    state.clientProspectName = '';
+    refreshProspectChip();
+    scheduleSave();
+  });
+}
+
+// ===== Recherche client maintenance (Entretien & Ramonage, lecture seule) =====
 let clientTimer;
 function wireClientSearch() {
   const inp = document.getElementById('clientSearch');
@@ -625,6 +731,15 @@ let sigTech, sigClient;
       state.taches = parsed.taches || [];
       state.splitsInt = parsed.splitsInt || [];
       if (parsed.gps) state.gps = parsed.gps;
+      // Lien Client/Prospect (table dédiée visites)
+      const linked = (f['Client/Prospect'] || [])[0];
+      if (linked) {
+        state.clientProspectId = linked;
+        try {
+          const { prospect } = await api.get(`/prospects/${linked}`);
+          state.clientProspectName = (prospect.fields && prospect.fields['Nom complet']) || 'Client lié';
+        } catch { state.clientProspectName = 'Client lié'; }
+      }
       // Les colonnes Airtable (modifiables côté Airtable) font autorité au ré-affichage
       colOverride = {
         statutChantier: getOptionName(f['Statut chantier']),
@@ -639,6 +754,8 @@ let sigTech, sigClient;
       state.materiel = initial.materiel || [];
       state.taches = initial.taches || [];
       state.splitsInt = initial.splitsInt || [];
+      state.clientProspectId = initial.clientProspectId || null;
+      state.clientProspectName = initial.clientProspectName || '';
       state.gps = initial.gps || null;
     }
   }
@@ -693,7 +810,9 @@ let sigTech, sigClient;
   document.getElementById('previewBtn').addEventListener('click', onPreview);
   document.getElementById('finalizeBtn').addEventListener('click', onFinalize);
   document.getElementById('backBtn').addEventListener('click', () => { location.href = '/dashboard.html'; });
+  wireProspectSearch();
   wireClientSearch();
+  refreshProspectChip();
 })();
 
 function captureGps() {
