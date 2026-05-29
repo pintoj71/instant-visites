@@ -40,12 +40,12 @@ export const COMMON_SECTIONS = [
       { key: 'telephone', label: 'Téléphone', type: 'tel' },
       { key: 'email', label: 'Email', type: 'email' },
       { key: 'adresse', label: 'Adresse', type: 'textarea', full: true },
-      { key: 'typeLogement', label: 'Type de logement', type: 'segmented', options: ['Maison', 'Appartement'] },
-      { key: 'anneeConstruction', label: 'Année de construction', type: 'text', inputMode: 'numeric' },
-      { key: 'surface', label: 'Surface à chauffer (m2)', type: 'number' },
-      { key: 'nbPieces', label: 'Nombre de pièces', type: 'number' },
-      { key: 'hauteurPlafond', label: 'Hauteur sous plafond (m)', type: 'number', step: '0.1' },
-      { key: 'isolation', label: "Niveau d'isolation", type: 'segmented', options: ['Faible', 'Moyen', 'Bon', 'RT2012+'] }
+      { key: 'typeLogement', label: 'Type de logement', type: 'segmented', options: ['Maison', 'Appartement'], info: 'Conditionne l\'accessibilité, le bruit pour les voisins (PAC), la possibilité de tubage extérieur et l\'autorisation copro éventuelle.' },
+      { key: 'anneeConstruction', label: 'Année de construction', type: 'text', inputMode: 'numeric', info: 'Année de construction du bâti principal. Utile pour deviner l\'isolation et la nature des murs (pierre, parpaing, ossature bois…).' },
+      { key: 'surface', label: 'Surface à chauffer (m2)', type: 'number', info: 'Surface habitable totale chauffée en m². Compter uniquement les pièces principales (séjour, chambres, bureau). N\'inclut pas garage, cellier non chauffé, balcons, combles non aménagés.' },
+      { key: 'nbPieces', label: 'Nombre de pièces', type: 'number', info: 'Nombre total de pièces principales (séjour + chambres). Ne compte pas SDB, WC, couloirs, dressing, cuisine ouverte sur séjour. Sert à estimer le nb de personnes et donc le volume ECS.' },
+      { key: 'hauteurPlafond', label: 'Hauteur sous plafond (m)', type: 'number', step: '0.1', info: 'Hauteur sous plafond moyenne en mètres. Mesurer dans la pièce de vie. Au-delà de 2,5 m, le volume à chauffer (et la puissance nécessaire) augmente sensiblement.' },
+      { key: 'isolation', label: "Niveau d'isolation", type: 'segmented', options: ['Faible', 'Moyen', 'Bon', 'RT2012+'], info: 'Niveau d\'isolation thermique global du logement. Faible = avant 1974, simple vitrage. Moyen = 1974-2005, double vitrage récent. Bon = 2006-2012, RT2005. RT2012+ = après 2013, BBC/RT2012/RE2020. Détermine le coefficient W/m³ du calcul de puissance.' }
     ]
   },
   {
@@ -378,7 +378,7 @@ export function computeDimensions(type, answers, splitsInt) {
       const totalFrigo = round1(withLen.reduce((s, u) => s + num(u.frigoM), 0));
       const totalElec = round1(withLen.reduce((s, u) => s + num(u.elecM), 0));
       lines.push({ label: 'Liaisons frigo totales', value: `${totalFrigo} m`, hint: `${withLen.length} unité(s) avec longueur renseignée` });
-      lines.push({ label: 'Câble élec total', value: `${totalElec} m` });
+      lines.push({ label: 'Liaisons élec totales', value: `${totalElec} m`, hint: 'Câble multi-conducteurs (alim + communication) entre unité ext. et chaque unité int.' });
       const surcharge = Math.max(0, totalFrigo - 7);
       lines.push({
         label: 'Pré-charge fluide R32',

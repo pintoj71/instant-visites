@@ -46,12 +46,22 @@ function renderField(f) {
     control = `<div class="seg seg-inline">` + (f.options || []).map(o => `
       <label><input type="radio" name="${f.key}" data-key="${f.key}" value="${escapeHtml(o)}"><span>${escapeHtml(o)}</span></label>`).join('') + `</div>`;
   } else if (f.type === 'unit-list') {
-    control = `<div id="${f.key}List" class="unit-list"></div>
+    control = `<details class="splits-help"><summary>ⓘ Comment remplir chaque unité intérieure ?</summary>
+        <ul>
+          <li><strong>Pièce / emplacement</strong> : où sera fixée l'unité intérieure (salon, chambre 1…).</li>
+          <li><strong>Surface (m²)</strong> : surface de cette pièce. Sert au calcul de puissance par pièce.</li>
+          <li><strong>Liaison frigo (m)</strong> : longueur du tube cuivre brasé/isolé reliant l'unité extérieure à cette unité intérieure.</li>
+          <li><strong>Liaison élec (m)</strong> : longueur du câble multi-conducteurs (alim + communication, généralement <em>4G1,5 mm²</em>) entre l'unité ext. et l'unité int. C'est le câble qui pilote l'unité — distinct de l'alimentation depuis le tableau.</li>
+          <li><strong>Puissance (kW)</strong> : puissance frigo/calo nominale de l'unité int. (optionnel — sinon dérivée de la surface).</li>
+        </ul>
+      </details>
+      <div id="${f.key}List" class="unit-list"></div>
       <button class="btn ghost small" type="button" id="${f.key}Add" style="margin-top:6px;">+ Ajouter une unité intérieure</button>`;
   } else {
     control = `<input type="${f.type}" ${common}${f.placeholder ? ` placeholder="${escapeHtml(f.placeholder)}"` : ''}>`;
   }
-  return `<div class="field${f.full ? ' full' : ''}"><label>${escapeHtml(f.label)}</label>${control}${f.hint ? `<div class="hint">${escapeHtml(f.hint)}</div>` : ''}</div>`;
+  const infoBtn = f.info ? ` <button type="button" class="info-btn" data-info="${escapeHtml(f.info)}" aria-label="Plus d'infos">ⓘ</button>` : '';
+  return `<div class="field${f.full ? ' full' : ''}"><label>${escapeHtml(f.label)}${infoBtn}</label>${control}${f.hint ? `<div class="hint">${escapeHtml(f.hint)}</div>` : ''}</div>`;
 }
 
 function renderSection(s, isType) {
@@ -61,7 +71,9 @@ function renderSection(s, isType) {
 }
 
 function renderCommon() {
-  document.getElementById('commonSections').innerHTML = COMMON_SECTIONS.map(s => renderSection(s, false)).join('');
+  const host = document.getElementById('commonSections');
+  host.innerHTML = COMMON_SECTIONS.map(s => renderSection(s, false)).join('');
+  attachInfoButtons(host);
 }
 
 function renderTypeSections(type) {
@@ -70,7 +82,49 @@ function renderTypeSections(type) {
   cont.innerHTML = blocks.map(b => renderSection(b, true)).join('');
   document.getElementById('typeHint').style.display = (type && blocks.length === 0) || !type ? 'block' : 'none';
   attachVoiceButtons(cont);
+  attachInfoButtons(cont);
   wireSplitsInt(); // PAC Air/Air : liste répétable des splits si présente
+}
+
+// ===== Info-bulles (ⓘ) cliquables =====
+function showInfoPopover(target, text) {
+  document.querySelectorAll('.info-popover').forEach(p => p.remove());
+  const pop = document.createElement('div');
+  pop.className = 'info-popover';
+  pop.innerHTML = `<button class="info-close" type="button" aria-label="Fermer">×</button><div class="info-text"></div>`;
+  pop.querySelector('.info-text').textContent = text;
+  document.body.appendChild(pop);
+  const r = target.getBoundingClientRect();
+  const W = Math.min(320, window.innerWidth - 16);
+  pop.style.maxWidth = W + 'px';
+  let left = r.left + window.scrollX;
+  if (left + W > window.innerWidth - 8) left = window.innerWidth - W - 8;
+  if (left < 8) left = 8;
+  pop.style.left = left + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 8) + 'px';
+
+  const close = () => {
+    pop.remove();
+    document.removeEventListener('mousedown', outside, true);
+    document.removeEventListener('touchstart', outside, true);
+  };
+  const outside = (e) => { if (!pop.contains(e.target) && e.target !== target) close(); };
+  pop.querySelector('.info-close').addEventListener('click', close);
+  setTimeout(() => {
+    document.addEventListener('mousedown', outside, true);
+    document.addEventListener('touchstart', outside, true);
+  }, 0);
+}
+function attachInfoButtons(root = document) {
+  root.querySelectorAll('.info-btn').forEach(btn => {
+    if (btn._wired) return;
+    btn._wired = true;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showInfoPopover(btn, btn.dataset.info || '');
+    });
+  });
 }
 
 // ===== Données (collect / apply) =====
@@ -172,6 +226,10 @@ async function compressImage(file, max = 1200, quality = 0.72) {
 
 function renderPhotos() {
   const grid = document.getElementById('photosGrid');
+  if (state.existingPhotos.length === 0 && state.newPhotos.length === 0) {
+    grid.innerHTML = '<div class="empty-state">Aucune photo. Cliquez sur « + Ajouter une ou plusieurs photos » ci-dessous.</div>';
+    return;
+  }
   // Photos déjà enregistrées : on n'affiche l'aperçu que si on a la dataURL locale
   // (les URLs Airtable externes sont bloquées par la CSP -> placeholder libellé).
   const ex = state.existingPhotos.map((p, i) => {
@@ -228,6 +286,10 @@ async function addPhotos(files) {
 function renderCroquis() {
   const grid = document.getElementById('croquisGrid');
   if (!grid) return;
+  if (state.existingCroquis.length === 0 && state.newCroquis.length === 0) {
+    grid.innerHTML = '<div class="empty-state">Aucun croquis encore. Cliquez sur « + Nouveau croquis » ci-dessous pour dessiner.</div>';
+    return;
+  }
   const ex = state.existingCroquis.map((c, i) => {
     const visual = c.dataUrl
       ? `<img src="${c.dataUrl}" alt="croquis">`
@@ -372,7 +434,7 @@ function renderSplitsInt() {
       <div class="split-metrics">
         <input type="text" inputmode="decimal" data-spi="${i}" data-f="surfacePiece" placeholder="Surface (m²)" value="${escapeHtml(u.surfacePiece || '')}">
         <input type="text" inputmode="decimal" data-spi="${i}" data-f="frigoM" placeholder="Frigo (m)" value="${escapeHtml(u.frigoM || '')}">
-        <input type="text" inputmode="decimal" data-spi="${i}" data-f="elecM" placeholder="Élec (m)" value="${escapeHtml(u.elecM || '')}">
+        <input type="text" inputmode="decimal" data-spi="${i}" data-f="elecM" placeholder="Liaison élec (m)" value="${escapeHtml(u.elecM || '')}">
         <input type="text" inputmode="decimal" data-spi="${i}" data-f="puissance" placeholder="Puissance (kW)" value="${escapeHtml(u.puissance || '')}">
       </div>
     </div>`).join('');

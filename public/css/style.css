@@ -350,6 +350,48 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 .croquis-canvas-wrap { flex: 1; min-height: 0; padding: 8px; background: #f9f4ee; display: flex; align-items: center; justify-content: center; }
 #croquisCanvas { display: block; touch-action: none; background: #fff; box-shadow: 0 0 0 1px var(--border); border-radius: 4px; max-width: 100%; max-height: 100%; }
 
+/* Info-bulles cliquables (ⓘ) sur les champs */
+.info-btn {
+  background: transparent; border: 0; padding: 0 4px;
+  cursor: pointer; color: var(--accent);
+  font-size: 14px; line-height: 1; vertical-align: middle;
+  text-transform: none;
+}
+.info-btn:hover { color: var(--accent-2); }
+.info-popover {
+  position: absolute; z-index: 999;
+  background: var(--primary); color: #fff;
+  padding: 12px 28px 14px 14px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  font-size: 13px; line-height: 1.5;
+}
+.info-popover .info-close {
+  position: absolute; top: 4px; right: 6px;
+  background: transparent; border: 0; color: #fff;
+  font-size: 20px; cursor: pointer; padding: 0 4px;
+  line-height: 1;
+}
+.info-popover .info-text { white-space: pre-line; }
+
+/* Bloc d'aide replié au-dessus de la liste de splits */
+.splits-help {
+  background: #fdf3e6; border: 1px solid #f0d9be; border-radius: 8px;
+  padding: 8px 12px; margin: 8px 0 10px; font-size: 12px;
+}
+.splits-help summary { cursor: pointer; font-weight: 700; color: var(--primary); list-style: none; padding: 2px 0; }
+.splits-help summary::-webkit-details-marker { display: none; }
+.splits-help ul { margin: 8px 0 4px 18px; padding: 0; }
+.splits-help li { margin: 4px 0; line-height: 1.45; }
+.splits-help em { font-style: italic; }
+
+/* État vide pour les grilles (photos, croquis) */
+.empty-state {
+  padding: 20px; text-align: center; color: var(--muted);
+  border: 2px dashed var(--border); border-radius: 10px;
+  font-size: 13px; font-style: italic; background: #faf5ee;
+}
+
 /* Dimensionnement (carte indicative) */
 .dim-grid { margin-top: 10px; }
 .dim-lines { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -373,10 +415,10 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 
 /* Tableau "Détail par pièce" (PAC Air/Air) */
 .dim-perroom { margin-top: 14px; }
-.dim-perroom h3 { font-size: 13px; color: var(--marron); margin: 0 0 6px 0; font-weight: 700; }
+.dim-perroom h3 { font-size: 13px; color: var(--primary); margin: 0 0 6px 0; font-weight: 700; }
 .dim-perroom table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dim-perroom th, .dim-perroom td { padding: 6px 8px; border: 1px solid var(--border); text-align: left; }
-.dim-perroom th { background: #fdf3e6; color: var(--marron); font-weight: 700; }
+.dim-perroom th { background: #fdf3e6; color: var(--primary); font-weight: 700; }
 .dim-perroom tr:nth-child(even) td { background: #faf5ee; }
 
 /* Liste répétable d'unités intérieures (PAC Air/Air) */

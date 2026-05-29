@@ -4,6 +4,32 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.6.2] - 2026-05-29
+
+### Ajouté — Info-bulles cliquables (ⓘ) sur les champs
+- Petite icône **ⓘ** à droite du libellé de chaque champ avec aide. Au clic,
+  popover sombre qui explique ce qu'on attend (et se ferme au clic-extérieur).
+- Champs documentés : Type de logement, Année de construction, Surface,
+  Nb pièces, Hauteur sous plafond, Niveau d'isolation. (D'autres seront
+  ajoutés au fil des retours terrain.)
+
+### Modifié — Splits Air/Air : « Câble élec » → « Liaison élec »
+- Renommage pour lever l'ambiguïté : il s'agit du **câble multi-conducteurs
+  (alim + communication, typiquement 4G1,5 mm²) reliant l'unité extérieure
+  à chaque unité intérieure** — distinct de l'alimentation depuis le tableau.
+- Au-dessus de la liste des splits : nouveau **bloc d'aide repliable**
+  (`ⓘ Comment remplir chaque unité intérieure ?`) qui détaille les 5 champs
+  (Pièce, Surface, Liaison frigo, Liaison élec, Puissance).
+- Dans le dimensionnement PDF : « Câble élec total » → « Liaisons élec
+  totales » + hint explicatif.
+
+### Modifié — États vides
+- Grilles Photos et Croquis : quand rien n'est encore ajouté, affichage d'un
+  bloc en pointillés invitant à utiliser le bouton ci-dessous (« Aucun
+  croquis encore. Cliquez sur « + Nouveau croquis » ci-dessous pour
+  dessiner. »). Plus de zone vide qui pouvait laisser penser que la section
+  manquait.
+
 ## [1.6.1] - 2026-05-29
 
 ### Corrigé — la « pseudo photo enregistrée »
