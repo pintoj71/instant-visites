@@ -114,6 +114,32 @@ export async function generatePdf(payload) {
 
   (payload.sections || []).forEach(s => { if (s.rows && s.rows.length) sectionTable(s.title, s.rows); });
 
+  // ===== Unites interieures (PAC Air/Air) =====
+  const splits = (payload.splitsInt || []).filter(u => u && (u.emplacement || u.type || u.frigoM || u.elecM));
+  if (splits.length) {
+    ensure(16);
+    const totalFrigo = splits.reduce((s, u) => s + (parseFloat(u.frigoM) || 0), 0);
+    const totalElec = splits.reduce((s, u) => s + (parseFloat(u.elecM) || 0), 0);
+    doc.autoTable({
+      startY: y,
+      head: [['Unite interieure', 'Type', 'Frigo (m)', 'Elec (m)', 'Puissance']],
+      body: splits.map((u, i) => [
+        `${i + 1}. ${u.emplacement || '-'}`,
+        u.type || '',
+        u.frigoM || '',
+        u.elecM || '',
+        u.puissance || ''
+      ]).concat(totalFrigo || totalElec ? [['TOTAL', '', totalFrigo ? totalFrigo.toFixed(1) : '', totalElec ? totalElec.toFixed(1) : '', '']] : []),
+      theme: 'grid',
+      headStyles: { fillColor: COL.bordeaux, textColor: 255, fontSize: 9, fontStyle: 'bold' },
+      bodyStyles: { fontSize: 8.5, textColor: COL.dark, cellPadding: 1.6 },
+      alternateRowStyles: { fillColor: [250, 246, 240] },
+      columnStyles: { 0: { cellWidth: CW - 30 - 25 - 25 - 30, fontStyle: 'bold', textColor: COL.marron }, 1: { cellWidth: 30 }, 2: { cellWidth: 25, halign: 'center' }, 3: { cellWidth: 25, halign: 'center' }, 4: { cellWidth: 30, halign: 'center' } },
+      margin: { left: M, right: M }
+    });
+    y = doc.lastAutoTable.finalY + 4;
+  }
+
   // ===== Conclusion de faisabilité =====
   ensure(30);
   const fz = payload.faisabilite || 'Non renseignée';
