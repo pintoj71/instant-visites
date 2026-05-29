@@ -47,7 +47,8 @@ export const FIELDS = {
     statutChantier: 'fldEG4lMbs69sGtd0',
     datePosePrevue: 'fld8xQMqmOqNJlUia',
     equipePose: 'fldwls6jYG1RBJFIr',
-    clientProspect: 'fldh9UPAsWFjoM4vS'
+    clientProspect: 'fldh9UPAsWFjoM4vS',
+    croquis: 'flduv9rpCC8jc2NmU'
   },
   technicien: {
     nom: 'fldhuYbKaGZdZ5QFo',

@@ -1,6 +1,6 @@
 // Service Worker — cache-first pour les assets, network-first pour les APIs.
 // IMPORTANT : bumper VERSION à chaque modif visible pour forcer la mise à jour.
-const VERSION = 'v1.3.0';
+const VERSION = 'v1.5.0';
 const CACHE = `instant-visites-${VERSION}`;
 const ASSETS = [
   '/',
@@ -15,6 +15,7 @@ const ASSETS = [
   '/js/points-visite.js',
   '/js/signature.js',
   '/js/pdf-generator.js',
+  '/js/croquis.js',
   '/js/logo.js',
   '/manifest.json',
   '/icons/icon.svg',
