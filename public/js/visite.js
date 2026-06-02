@@ -9,6 +9,10 @@ import {
 const params = new URLSearchParams(location.search);
 const state = {
   id: params.get('id') || null,
+  // Buffer accumulé de TOUTES les réponses saisies, y compris celles dont les
+  // champs sont actuellement masqués (sections d'un autre Type de projet).
+  // Permet de ne rien perdre quand on change de type puis qu'on y revient.
+  answers: {},
   newPhotos: [],        // { dataUrl, label }
   existingPhotos: [],    // { url|dataUrl, label, filename }
   newCroquis: [],       // { dataUrl, label }  (croquis dessinés cette session)
@@ -128,15 +132,17 @@ function attachInfoButtons(root = document) {
 }
 
 // ===== Données (collect / apply) =====
+// IMPORTANT : on accumule dans state.answers les réponses des champs visibles
+// SANS écraser celles des champs masqués (autres types de projet). Comme ça,
+// changer de type puis revenir conserve les saisies.
 function collectData() {
-  const d = {};
   document.querySelectorAll('[data-key]').forEach(el => {
     const k = el.dataset.key;
-    if (el.type === 'radio') { if (el.checked) d[k] = el.value; }
-    else { d[k] = el.value; }
+    if (el.type === 'radio') { if (el.checked) state.answers[k] = el.value; }
+    else state.answers[k] = el.value;
   });
-  if (state.refClient) d.refClient = state.refClient;
-  return d;
+  if (state.refClient) state.answers.refClient = state.refClient;
+  return state.answers;
 }
 
 function applyData(d) {
@@ -682,6 +688,9 @@ function pdfFilename(d) {
 }
 
 // ===== Sauvegarde serveur =====
+// Une pièce jointe ne bascule en "existante" QUE si son upload Airtable a réussi.
+// Les échecs restent dans newPhotos/newCroquis pour permettre un retry — et on
+// renvoie le nombre d'échecs au caller pour qu'il décide de poursuivre ou non.
 async function saveRecord(statut) {
   const fields = buildFields(statut);
   let rec;
@@ -692,27 +701,33 @@ async function saveRecord(statut) {
     state.id = rec.id;
     migrateStorageKey();
   }
-  // Upload des nouvelles photos (append) puis bascule en "existantes"
+  // Photos
+  const photosOk = [], photosKo = [];
   for (const p of state.newPhotos) {
     const base64 = p.dataUrl.split(',')[1];
     const fname = (p.label ? p.label.replace(/[^a-z0-9]/gi, '_') : 'photo') + '.jpg';
-    try { await api.post('/upload-photo', { visiteId: state.id, photoBase64: base64, filename: fname }); }
-    catch (e) { console.error('upload photo', e); }
+    try {
+      await api.post('/upload-photo', { visiteId: state.id, photoBase64: base64, filename: fname });
+      photosOk.push(p);
+    } catch (e) { console.error('upload photo', e); photosKo.push(p); }
   }
-  state.existingPhotos.push(...state.newPhotos.map(p => ({ dataUrl: p.dataUrl, label: p.label })));
-  state.newPhotos = [];
+  state.existingPhotos.push(...photosOk.map(p => ({ dataUrl: p.dataUrl, label: p.label })));
+  state.newPhotos = photosKo;
   renderPhotos();
-  // Upload des nouveaux croquis (append) puis bascule en "existants"
+  // Croquis
+  const croquisOk = [], croquisKo = [];
   for (const c of state.newCroquis) {
     const base64 = c.dataUrl.split(',')[1];
     const fname = (c.label ? c.label.replace(/[^a-z0-9]/gi, '_') : 'croquis') + '.png';
-    try { await api.post('/upload-croquis', { visiteId: state.id, croquisBase64: base64, filename: fname }); }
-    catch (e) { console.error('upload croquis', e); }
+    try {
+      await api.post('/upload-croquis', { visiteId: state.id, croquisBase64: base64, filename: fname });
+      croquisOk.push(c);
+    } catch (e) { console.error('upload croquis', e); croquisKo.push(c); }
   }
-  state.existingCroquis.push(...state.newCroquis.map(c => ({ dataUrl: c.dataUrl, label: c.label })));
-  state.newCroquis = [];
+  state.existingCroquis.push(...croquisOk.map(c => ({ dataUrl: c.dataUrl, label: c.label })));
+  state.newCroquis = croquisKo;
   renderCroquis();
-  return rec;
+  return { rec, attachFails: photosKo.length + croquisKo.length };
 }
 
 // ===== Boutons =====
@@ -725,9 +740,10 @@ async function onDraft() {
   if (!clientEl.value.trim()) { flashField(clientEl); toast('Nom du client requis', 'danger'); return; }
   busy(btn, 'Sauvegarde...');
   try {
-    await saveRecord('Brouillon');
+    const { attachFails } = await saveRecord('Brouillon');
     persist();
-    toast('Brouillon enregistré', 'success');
+    if (attachFails) toast(`${attachFails} pièce(s) jointe(s) non envoyée(s) — réessayez`, 'danger');
+    else toast('Brouillon enregistré', 'success');
   } catch (e) { toast(e.message, 'danger'); }
   finally { unbusy(btn); }
 }
@@ -747,22 +763,38 @@ async function onPreview() {
 
 async function onFinalize() {
   if (!validateFinal()) return;
+  if (!confirm('Clôturer la visite ?\nLe statut passera en « Terminée » et le rapport PDF sera généré.')) return;
   const btn = document.getElementById('finalizeBtn');
   busy(btn, 'Enregistrement...');
   try {
     const d = collectData();
-    await saveRecord('Terminée');
+    const { attachFails } = await saveRecord('Terminée');
+    if (attachFails) {
+      // On ne clôture pas tant que les pièces jointes ne sont pas en base —
+      // sinon l'utilisateur ne pourrait pas relancer sans rouvrir la visite.
+      toast(`${attachFails} pièce(s) jointe(s) non envoyée(s). Vérifiez la connexion puis retapez « Valider ».`, 'danger');
+      unbusy(btn);
+      return;
+    }
 
     busy(btn, 'PDF...');
     const doc = await generatePdf(buildPdfPayload());
     const fname = pdfFilename(d);
     doc.save(fname);
     const pdfBase64 = doc.output('datauristring').split(',')[1];
-    try { await api.post('/upload-pdf', { visiteId: state.id, pdfBase64, filename: fname }); }
-    catch (e) { console.error('upload pdf', e); toast('PDF généré mais non envoyé à Airtable', 'danger'); }
+    try {
+      await api.post('/upload-pdf', { visiteId: state.id, pdfBase64, filename: fname });
+    } catch (e) {
+      // PDF téléchargé localement mais non joint en base : on reste sur la page
+      // pour permettre un retry plutôt que de filer un faux signal de succès.
+      console.error('upload pdf', e);
+      toast('PDF téléchargé, mais envoi à Airtable échoué. Restez en ligne puis retapez « Valider ».', 'danger');
+      unbusy(btn);
+      return;
+    }
 
     try { localStorage.removeItem(storageKey); } catch {}
-    toast('✅ Visite enregistrée', 'success');
+    toast('Visite enregistrée', 'success');
     setTimeout(() => { location.href = '/dashboard.html'; }, 1400);
   } catch (e) {
     console.error(e);
@@ -992,10 +1024,16 @@ let sigTech, sigClient;
   setVal('technicien', state.userName);
   setVal('dateVisite', new Date().toISOString().slice(0, 10));
 
-  if (initial?.data) applyData(initial.data);
+  // On amorce le buffer answers avec tout ce qui a été saisi auparavant
+  // (Airtable ou brouillon local) — y compris des champs pas encore visibles.
+  if (initial?.data) {
+    state.answers = { ...initial.data };
+    applyData(state.answers);
+  }
   // Les colonnes Airtable (statut chantier / pose) priment sur le JSON au ré-affichage
   if (colOverride) {
     for (const [k, v] of Object.entries(colOverride)) {
+      state.answers[k] = v;
       const el = document.querySelector(`[data-key="${k}"]`);
       if (el) el.value = v;
     }

@@ -4,6 +4,34 @@ Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniqu
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/),
 versionnage [SemVer](https://semver.org/lang/fr/).
 
+## [1.7.0] - 2026-06-02
+
+### Corrigé — 3 bugs robustesse identifiés à l'audit
+- **Photos « fantômes »** : si l'upload d'une photo (ou d'un croquis) vers Airtable
+  échouait, l'app la déplaçait quand même dans la liste des « existantes » côté UI
+  et l'effaçait du buffer local. Résultat : le technicien voyait une vignette qui
+  disparaissait à la prochaine ouverture. Désormais, seules les pièces jointes
+  **réellement envoyées** basculent en « existantes » ; les autres restent dans
+  `newPhotos`/`newCroquis` pour permettre un retry au tap suivant sur « Brouillon »
+  ou « Valider », avec un toast clair `N pièce(s) jointe(s) non envoyée(s)`.
+- **« Valider » sans PDF en base** : si l'envoi du PDF à Airtable échouait,
+  l'app ramenait quand même au dashboard avec un toast `✅`. La visite passait
+  en `Terminée` sans rapport joint. Désormais on **reste sur la page** avec un
+  toast `PDF téléchargé, mais envoi à Airtable échoué. Restez en ligne puis
+  retapez « Valider »` — le tap relance le flux complet (saveRecord est idempotent).
+- **Perte de réponses au changement de type de projet** : passer de « Poêle bois »
+  à « Chaudière gaz » effaçait les réponses des sections spécifiques du bois (le
+  DOM des champs disparaissait avant qu'on ait pu les conserver). Désormais
+  `state.answers` accumule **toutes** les réponses, y compris celles dont les
+  champs sont masqués. Re-sélectionner « Poêle bois » restaure les saisies
+  d'origine. L'autosave local et le JSON Airtable contiennent désormais l'ensemble
+  des réponses jamais saisies sur la visite.
+
+### Modifié — Confirmation avant clôture
+- Tap sur « ✅ Valider » : nouveau dialogue `Clôturer la visite ? Le statut
+  passera en « Terminée » et le rapport PDF sera généré.` Annulable.
+  Évite les clôtures par miss-tap sur mobile.
+
 ## [1.6.3] - 2026-05-29
 
 ### Modifié — PINs techniciens lisibles en clair dans Airtable
