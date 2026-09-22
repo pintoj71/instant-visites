@@ -30,6 +30,9 @@ const COL = {
 
 const fmtFR = (iso) => {
   if (!iso) return '';
+  // Une date civile ne doit pas être convertie selon le fuseau horaire.
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   const d = new Date(iso);
   if (isNaN(d)) return iso;
   return d.toLocaleDateString('fr-FR');
