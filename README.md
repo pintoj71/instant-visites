@@ -71,3 +71,7 @@ Ouvrir `/icons/generate.html`, télécharger `icon-192.png` et `icon-512.png`, l
 4. **Brouillon** pour reprendre plus tard, ou **Valider** pour générer/archiver le PDF.
 
 Sauvegarde locale automatique : une visite interrompue se restaure au rechargement.
+
+## Vérifier les régressions
+
+`npm ci` puis `npm test`. Les tests utilisent un DOM et une API simulés, sans écrire dans Airtable.

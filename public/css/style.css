@@ -551,3 +551,11 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
   .seg label { min-width: 100%; }
   button.btn { padding: 10px 12px; }
 }
+
+/* Fiabilité et synthèse */
+.section-na { display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+.section-na input { width:20px; height:20px; }
+.attachment-label { padding:6px; font-size:12px; overflow-wrap:anywhere; }
+#visitReview ul { padding-left:20px; }
+.save-status { max-width:45%; white-space:normal; text-align:right; font-size:12px; }
+[hidden] { display:none !important; }

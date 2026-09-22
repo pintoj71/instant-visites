@@ -15,7 +15,7 @@
   <button id="backBtn">← Retour</button>
   <div class="logo">Visite technique</div>
   <div class="spacer"></div>
-  <span class="save-status" id="saveStatus">💾 Auto</span>
+  <span class="save-status" id="saveStatus" role="status">Chargement…</span>
 </header>
 
 <main>
@@ -28,18 +28,18 @@
     <button type="button" class="visit-step" data-visit-step="bilan"><span>4</span><b>Bilan</b></button>
     <button type="button" class="visit-step" data-visit-step="pose"><span>5</span><b>Pose</b></button>
   </nav>
-  <div class="visit-progress" aria-live="polite"><span id="visitProgressLabel">Étape 1 sur 5 · Projet</span><span id="visitProgressState">Enregistrement automatique</span></div>
+  <div class="visit-progress" aria-live="polite"><span id="visitProgressLabel">Étape 1 sur 5 · Projet</span><span id="visitProgressState">Sauvegarde sur cet appareil</span></div>
 
   <!-- Type de projet (détecteur) + recherche client -->
   <section class="visit-step-panel" data-visit-panel="projet">
   <div class="card">
     <h2>🧭 Type de projet</h2>
-    <select id="typeProjet" data-key="typeProjet">
+    <select id="typeProjet" aria-label="Type de projet" data-key="typeProjet">
       <option value="">— Choisir le type d'installation —</option>
     </select>
 
-    <h3>Client / Prospect (Visites)</h3>
-    <p class="muted" style="margin-top:-4px;">Table dédiée aux contacts des visites (séparée de l'entretien & ramonage).</p>
+    <h3>Retrouver un client</h3>
+    <p class="muted" style="margin-top:-4px;">Choisissez un contact existant ou renseignez ses coordonnées ci-dessous.</p>
     <div id="prospectChip" class="prospect-chip" style="display:none;">
       <span class="prospect-name"></span>
       <button type="button" class="btn ghost small" id="prospectUnlink">Délier</button>
@@ -49,11 +49,12 @@
     <button type="button" class="btn dark small" id="prospectCreate" style="margin-top:6px;display:none;">+ Créer ce client / prospect avec les infos saisies</button>
 
     <details class="ramonage-fold" style="margin-top:14px;">
-      <summary>Importer depuis Entretien & Ramonage (base maintenance)</summary>
+      <summary>Rechercher dans les clients entretien et ramonage</summary>
       <input type="search" id="clientSearch" placeholder="Rechercher (nom, ville, téléphone…)" autocomplete="off" style="margin-top:8px;">
       <div id="clientResults"></div>
     </details>
   </div>
+  <div id="clientFields"></div>
   </section>
 
   <section class="visit-step-panel" data-visit-panel="releve">
@@ -170,6 +171,8 @@
     </div>
   </div>
 
+  <div class="card"><h2>Récapitulatif avant validation</h2><div id="visitReview"></div></div>
+
   <!-- Signatures -->
   <div class="card">
     <h2>✍️ Signatures & date</h2>
@@ -210,9 +213,9 @@
   </div>
 
   <div class="actions-bar">
-    <button class="btn ghost" id="draftBtn">💾 Brouillon</button>
-    <button class="btn dark" id="previewBtn">👁️ PDF</button>
-    <button class="btn success" id="finalizeBtn">✅ Valider</button>
+    <button class="btn ghost" id="draftBtn">Enregistrer en ligne</button>
+    <button class="btn dark" id="previewBtn">Aperçu PDF</button>
+    <button class="btn success" id="finalizeBtn">Terminer la visite</button>
   </div>
 </main>
 

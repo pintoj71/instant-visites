@@ -1,6 +1,6 @@
 // Service Worker — cache-first pour les assets, network-first pour les APIs.
 // IMPORTANT : bumper VERSION à chaque modif visible pour forcer la mise à jour.
-const VERSION = 'v1.7.2';
+const VERSION = 'v1.8.0';
 const CACHE = `instant-visites-${VERSION}`;
 const ASSETS = [
   '/',

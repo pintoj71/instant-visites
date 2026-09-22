@@ -2,7 +2,7 @@
 // Ajoute une photo (JPEG compressé, base64) en pièce jointe sur la visite.
 // L'API uploadAttachment ajoute la pièce jointe sans écraser les précédentes,
 // on l'appelle donc une fois par photo. Le libellé est porté par le nom de fichier.
-import { requireAuth, FIELDS, isValidRecordId, uploadAttachment, json, unauthorized, badRequest, serverError } from './_lib.js';
+import { requireAuth, airtable, TABLES, FIELDS, isValidRecordId, uploadAttachment, json, unauthorized, badRequest, serverError } from './_lib.js';
 
 export const handler = async (event) => {
   const user = requireAuth(event);
@@ -16,6 +16,11 @@ export const handler = async (event) => {
   if (!photoBase64) return badRequest('photoBase64 requis');
 
   try {
+    if (filename && /^(photo|croquis)-[0-9a-f-]{36}\.(jpg|png)$/.test(filename)) {
+      const rec = await airtable(`/${TABLES.VISITES}/${visiteId}`);
+      const existing = (rec.fields?.['Photos'] || []).find(a => a.filename === filename);
+      if (existing) return json(200, { attachment: existing, alreadyUploaded: true });
+    }
     const data = await uploadAttachment(visiteId, FIELDS.visite.photos, {
       contentType: 'image/jpeg',
       file: photoBase64,

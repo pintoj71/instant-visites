@@ -1,3 +1,14 @@
+## v1.8.0 — Fiabilité des visites et parcours simplifié
+
+- Brouillons locaux isolés par technicien, restaurés aussi pour les visites existantes ; sauvegarde au départ et après une signature.
+- État explicite de sauvegarde ; aucune confirmation silencieuse lorsque le stockage est plein.
+- Clôture uniquement après les pièces jointes et le PDF ; actions concurrentes bloquées durant un envoi.
+- Effacement des champs transmis à Airtable ; légendes conservées par nom de fichier stable et reprise des envois.
+- PDF bloqué si une pièce jointe attendue manque ; en-tête adapté aux textes longs.
+- Coordonnées client dans la première étape, récapitulatif des manques, minimum de relevé par type et choix Non applicable.
+- Pagination au-delà de 100 visites ; dates civiles indépendantes du fuseau horaire.
+- Tests de régression avec API simulée : `npm test`. Ils ne remplacent pas un essai terrain sur téléphone.
+
 # Journal des modifications
 
 Toutes les évolutions notables de l'app **INSTANT BY PINTO — Visites techniques**.

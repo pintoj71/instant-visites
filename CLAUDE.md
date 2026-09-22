@@ -110,32 +110,25 @@ Tout est dans `public/js/points-visite.js` :
 Le rendu, l'autosave, le PDF et la restauration sont automatiques (basés sur les `key` des champs,
 qui doivent rester **stables**). Le PDF lit les mêmes définitions.
 
-## Flux de sauvegarde
+## Flux de sauvegarde (v1.8.0)
 
-1. Autosave local (localStorage) à chaque saisie + restauration au rechargement.
-2. **Brouillon** : POST/PATCH visite avec `Statut = Brouillon` (nom client requis).
-3. **Valider** : validation (client, type, faisabilité, 2 signatures) → PATCH `Statut = Terminée`
-   → upload des nouvelles photos → génération PDF → téléchargement local + upload Airtable →
-   purge du brouillon local → retour dashboard.
-4. À la première sauvegarde, l'URL bascule en `?id=rec...` (et la clé localStorage suit).
+1. Autosave local par technicien, y compris pour une visite existante. Les signatures et le départ de page déclenchent la sauvegarde. Stockage plein : avertissement explicite, aucune suppression silencieuse des photos.
+2. **Enregistrer en ligne** : POST/PATCH en Brouillon, envoi des pièces jointes, conservation des légendes, confirmation après succès. Les champs effacés sont transmis avec null (liens : []).
+3. **Terminer la visite** : contrôle des données et signatures → sauvegarde en Brouillon → pièces jointes → PDF → upload PDF → PATCH Terminée en dernier.
+4. Pendant une opération, les autres actions et la saisie sont verrouillées. Une erreur conserve le brouillon local.
+5. À la première création, l'URL et la clé locale suivent l'ID Airtable. Noms de fichiers uniques conservés pour reconnaître un upload déjà réussi.
+6. Le PDF attend toutes les pièces jointes existantes. Les libellés sont stockés dans Réponses (JSON), par nom de fichier.
 
-## Pièges connus
+## Limites et vérifications
 
-- **jsPDF = police WinAnsi/Latin-1** : ne JAMAIS écrire `≤ ≥ ₂ ⚠ ✓` dans le PDF (utiliser
-  `<=`, `>=`, `2`, `X`...). Les accents FR passent. Les `°` et `•` passent (Latin-1) mais on les évite.
-- **CSP `img-src 'self' data: blob:`** : les photos déjà enregistrées (URL Airtable externe) ne
-  s'affichent PAS à la réouverture → on montre un placeholder libellé. Les photos de la session
-  courante (dataURL) s'affichent et s'embarquent dans le PDF. (Ne pas ajouter de domaine externe à
-  l'img-src pour rester conforme à la CSP demandée.)
-- **PDF & photos à la réouverture** : un rapport régénéré après réouverture (`?id=`) n'inclut pas
-  les anciennes photos (pas de dataURL côté client) — le PDF d'origine reste en pièce jointe.
-- **Service Worker** : bumper `VERSION` dans `sw.js` à chaque modif visible, sinon vieille version servie.
-- **localStorage** : beaucoup de photos peuvent dépasser le quota → l'autosave réessaie sans les
-  photos (toast d'avertissement). Les photos restent en mémoire jusqu'à validation.
-- **singleSelect en écriture** : envoyer le **nom** d'option (string) avec `typecast: true` ; les
-  valeurs vides sont supprimées avant envoi pour éviter une option vide.
-- **Si le PDF échoue avec une erreur CSP** (`unsafe-eval`) sur un navigateur : ajouter `'unsafe-eval'`
-  à `script-src` dans `netlify.toml`. (Non requis a priori avec jsPDF 2.5.2 + autoTable 3.8.4.)
+- `npm test` : scénarios avec DOM et API simulée (restauration, échecs d'envoi, clôture, signatures, pagination et 9 types).
+- Pas de garantie de fonctionnement intégral hors ligne : ouvrir une visite nécessite une session serveur ; PDF chargé via CDN. Une visite déjà ouverte conserve les modifications localement tant que le quota le permet.
+- En cas de conflit avec une version en ligne, le technicien choisit la version à reprendre. Pas de fusion automatique des modifications de plusieurs appareils.
+- Les contrôles techniques imposent un minimum de description, sans certification réglementaire. Une section peut être explicitement non applicable.
+- Bumper VERSION dans public/sw.js pour chaque mise à jour visible.
+- Dates civiles YYYY-MM-DD : ne pas les convertir en Date UTC pour affichage.
+- Police PDF standard : éviter les glyphes hors Latin-1.
+- Ne pas changer la structure Airtable sans accord.
 
 ## Variables d'environnement (Netlify + .env local)
 

@@ -8,6 +8,8 @@ api.get('/me').then(u => {
 const listEl = document.getElementById('list');
 const searchEl = document.getElementById('search');
 let currentWhen = 'today';
+let cursor = null, shown = [], loadVersion = 0, lastQuery = '';
+const moreBtn = document.getElementById('loadMore');
 
 function faisaBadge(f) {
   const name = getOptionName(f);
@@ -51,17 +53,29 @@ function render(records) {
   });
 }
 
-async function load(when, q) {
-  listEl.innerHTML = `<div class="empty"><span class="spinner dark"></span></div>`;
+async function load(when, q = '', append = false) {
+  const version = ++loadVersion;
+  lastQuery = q;
+  if (!append) { shown = []; cursor = null; listEl.innerHTML = '<div class="empty"><span class="spinner dark"></span></div>'; }
+  moreBtn.hidden = true;
+  moreBtn.disabled = true;
   try {
-    const qs = q ? `?q=${encodeURIComponent(q)}` : `?when=${when}`;
-    const { records } = await api.get(`/visites${qs}`);
-    render(records);
+    const qs = new URLSearchParams(q ? { q } : { when });
+    if (append && cursor) qs.set('offset', cursor);
+    const { records, offset } = await api.get(`/visites?${qs}`);
+    if (version !== loadVersion) return;
+    shown = [...new Map([...shown, ...records].map(r => [r.id, r])).values()];
+    cursor = offset;
+    render(shown);
+    moreBtn.hidden = !cursor;
   } catch (err) {
+    if (version !== loadVersion) return;
     toast(err.message, 'danger');
-    listEl.innerHTML = `<div class="empty"><div class="icon">⚠️</div>${escapeHtml(err.message)}</div>`;
-  }
+    if (!append) listEl.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
+    else moreBtn.hidden = false;
+  } finally { if (version === loadVersion) moreBtn.disabled = false; }
 }
+moreBtn.addEventListener('click', () => load(currentWhen, lastQuery, true));
 
 document.querySelectorAll('.tabs button').forEach(b => {
   b.addEventListener('click', () => {

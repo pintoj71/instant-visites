@@ -30,6 +30,7 @@ function buildListUrl(params) {
   const sp = new URLSearchParams();
   sp.set('filterByFormula', params.formula);
   sp.set('pageSize', '100');
+  if (params.offset) sp.set('offset', params.offset);
   sp.set('sort[0][field]', 'Date visite');
   sp.set('sort[0][direction]', params.direction || 'desc');
   return `/${TABLES.VISITES}?${sp.toString()}`;
@@ -59,8 +60,8 @@ async function listVisites(event) {
     direction = 'asc';
   }
 
-  const data = await airtable(buildListUrl({ formula, direction }));
-  return json(200, { records: data.records });
+  const data = await airtable(buildListUrl({ formula, direction, offset: p.get('offset') }));
+  return json(200, { records: data.records, offset: data.offset || null });
 }
 
 async function getVisite(id) {

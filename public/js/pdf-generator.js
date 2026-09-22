@@ -30,7 +30,8 @@ const COL = {
 
 const fmtFR = (iso) => {
   if (!iso) return '';
-  // Une date civile ne doit pas être convertie selon le fuseau horaire.
+  // Les dates Airtable sont au format YYYY-MM-DD : les parser en UTC
+  // fait basculer au jour précédent dans les fuseaux horaires à l’ouest de UTC.
   const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (m) return `${m[3]}/${m[2]}/${m[1]}`;
   const d = new Date(iso);
@@ -72,22 +73,19 @@ export async function generatePdf(payload) {
   doc.text('Etude de faisabilite avant installation', PW - M, 20, { align: 'right' });
   y = 34;
 
-  // ===== Bandeau infos =====
-  doc.setDrawColor(...COL.creme); doc.setFillColor(...COL.creme);
-  doc.roundedRect(M, y, CW, 18, 2, 2, 'F');
-  doc.setTextColor(...COL.dark).setFontSize(10);
-  const col2 = M + CW / 2;
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Client : `, M + 4, y + 6);
-  doc.text(`Type de projet : `, M + 4, y + 12);
-  doc.text(`Date : `, col2 + 2, y + 6);
-  doc.text(`Technicien : `, col2 + 2, y + 12);
-  doc.setFont('helvetica', 'normal');
-  doc.text(String(payload.client?.nom || '-'), M + 4 + doc.getTextWidth('Client : '), y + 6);
-  doc.text(String(payload.type || '-'), M + 4 + doc.getTextWidth('Type de projet : '), y + 12);
-  doc.text(fmtFR(payload.dateVisite) || '-', col2 + 2 + doc.getTextWidth('Date : '), y + 6);
-  doc.text(String(payload.technicien || '-'), col2 + 2 + doc.getTextWidth('Technicien : '), y + 12);
-  y += 18 + 5;
+  // ===== Informations, avec retour à la ligne pour les noms / projets longs =====
+  doc.autoTable({
+    startY: y,
+    body: [
+      ['Client', payload.client?.nom || '-', 'Date', fmtFR(payload.dateVisite) || '-'],
+      ['Projet', payload.type || '-', 'Technicien', payload.technicien || '-']
+    ],
+    theme: 'plain',
+    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2.5, fillColor: COL.creme, textColor: COL.dark, overflow: 'linebreak' },
+    columnStyles: { 0: { cellWidth: 18, fontStyle: 'bold' }, 1: { cellWidth: 82 }, 2: { cellWidth: 23, fontStyle: 'bold' }, 3: { cellWidth: CW - 123 } },
+    margin: { left: M, right: M }
+  });
+  y = doc.lastAutoTable.finalY + 5;
 
   // Coordonnées client (si présentes)
   const coords = [payload.client?.tel, payload.client?.email, (payload.client?.adresse || '').replace(/\n/g, ', ')].filter(Boolean).join('  |  ');

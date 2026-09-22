@@ -1,5 +1,5 @@
 // Pad de signature tactile minimaliste
-export function initSignaturePad(canvas, placeholder) {
+export function initSignaturePad(canvas, placeholder, onChange = () => {}) {
   const ctx = canvas.getContext('2d');
   let drawing = false;
 
@@ -31,7 +31,7 @@ export function initSignaturePad(canvas, placeholder) {
   }
   function start(e) { e.preventDefault(); drawing = true; if (placeholder) placeholder.style.display = 'none'; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
   function move(e) { if (!drawing) return; e.preventDefault(); const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
-  function end() { drawing = false; }
+  function end() { if (drawing) { drawing = false; onChange(); } }
 
   canvas.addEventListener('mousedown', start);
   canvas.addEventListener('mousemove', move);
@@ -54,13 +54,17 @@ export function initSignaturePad(canvas, placeholder) {
     },
     toDataURL() { return canvas.toDataURL('image/png'); },
     fromDataURL(url) {
-      const img = new Image();
-      img.onload = () => {
-        const ratio = window.devicePixelRatio || 1;
-        ctx.drawImage(img, 0, 0, canvas.width / ratio, canvas.height / ratio);
-        if (placeholder) placeholder.style.display = 'none';
-      };
-      img.src = url;
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const ratio = window.devicePixelRatio || 1;
+          ctx.drawImage(img, 0, 0, canvas.width / ratio, canvas.height / ratio);
+          if (placeholder) placeholder.style.display = 'none';
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = url;
+      });
     }
   };
 }

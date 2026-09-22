@@ -396,3 +396,11 @@ export function computeDimensions(type, answers, splitsInt) {
 
   return { status: 'ok', missing: [], lines, perRoom };
 }
+
+// Minimum de description avant clôture. Une section peut être explicitement non applicable.
+export const TECH_REQUIRED = {
+  bois: ['conduitExistant', 'emplacementBois', 'distancesSecurite'],
+  granules: ['stockageType'], hydraulique: ['emetteurs', 'circuit'],
+  gaz: ['alimGaz', 'typeEvac'], unite_ext_air: ['empUniteExt', 'evacCondensats'],
+  captage: ['typeCaptage'], splits: ['configSplit'], cet: ['empCet', 'sourceAir', 'evacCondensatsCet']
+};

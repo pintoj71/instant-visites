@@ -1,9 +1,9 @@
-import { api, toast, escapeHtml, getOptionName } from '/js/api.js';
+import { api, toast, escapeHtml, getOptionName, localDate } from '/js/api.js';
 import { initSignaturePad } from '/js/signature.js';
 import { generatePdf } from '/js/pdf-generator.js';
 import { openCroquisEditor } from '/js/croquis.js';
 import {
-  TYPES_PROJET, COMMON_SECTIONS, blocksForType, CHANTIER_STATUTS, materielFor, SPLIT_TYPES, computeDimensions
+  TYPES_PROJET, COMMON_SECTIONS, blocksForType, CHANTIER_STATUTS, materielFor, SPLIT_TYPES, computeDimensions, TECH_REQUIRED
 } from '/js/points-visite.js';
 
 const params = new URLSearchParams(location.search);
@@ -26,17 +26,23 @@ const state = {
   userName: '',
   quotaWarned: false
 };
-let storageKey = `visite:${state.id || 'new'}`;
+let storageKey;
+let ready = false, dirty = false, operation = false, finalized = false;
+let attachmentsReady = Promise.resolve();
+let baseAnswers = null;
+let loadFailed = false;
+let pendingMedia = 0;
+const draftKey = () => `visite:${encodeURIComponent(state.userName)}:${state.id || 'new'}`;
 
 // ===== Auth =====
 const meReady = api.get('/me')
-  .then(u => { state.userName = u.name; })
-  .catch(() => { location.href = '/'; });
+  .then(u => { state.userName = u.name; storageKey = draftKey(); return true; })
+  .catch(() => { toast('Connexion nécessaire pour ouvrir la visite. Réessayez lorsque le réseau revient.', 'danger'); return false; });
 
 // ===== Rendu des champs =====
 function renderField(f) {
   const inputMode = f.inputMode ? ` inputmode="${f.inputMode}"` : '';
-  const common = `data-key="${f.key}"${f.step ? ` step="${f.step}"` : ''}${inputMode}`;
+  const common = `id="field-${f.key}" aria-label="${escapeHtml(f.label)}" data-key="${f.key}"${f.step ? ` step="${f.step}"` : ''}${inputMode}`;
   let control;
   if (f.type === 'textarea') {
     control = f.voice
@@ -65,18 +71,22 @@ function renderField(f) {
     control = `<input type="${f.type}" ${common}${f.placeholder ? ` placeholder="${escapeHtml(f.placeholder)}"` : ''}>`;
   }
   const infoBtn = f.info ? ` <button type="button" class="info-btn" data-info="${escapeHtml(f.info)}" aria-label="Plus d'infos">ⓘ</button>` : '';
-  return `<div class="field${f.full ? ' full' : ''}"><label>${escapeHtml(f.label)}${infoBtn}</label>${control}${f.hint ? `<div class="hint">${escapeHtml(f.hint)}</div>` : ''}</div>`;
+  return `<div class="field${f.full ? ' full' : ''}"><label for="field-${f.key}">${escapeHtml(f.label)}${infoBtn}</label>${control}${f.hint ? `<div class="hint">${escapeHtml(f.hint)}</div>` : ''}</div>`;
 }
 
 function renderSection(s, isType) {
-  const body = `<div class="section-body"><div class="grid-2">${s.fields.map(renderField).join('')}</div></div>`;
+  const na = isType ? `<label class="section-na"><input type="checkbox" data-key="na_${s.id}"> Non applicable à ce projet</label>` : '';
+  const body = `<div class="section-body">${na}<div class="grid-2">${s.fields.map(renderField).join('')}</div></div>`;
   const tag = isType ? `<span class="section-tag">spécifique</span>` : '';
   return `<details class="section"${s.open || isType ? ' open' : ''}><summary>${s.icon || ''} ${escapeHtml(s.title)} ${tag}</summary>${body}</details>`;
 }
 
 function renderCommon() {
   const host = document.getElementById('commonSections');
-  host.innerHTML = COMMON_SECTIONS.map(s => renderSection(s, false)).join('');
+  const contactKeys = ['client', 'telephone', 'email', 'adresse'];
+  const client = COMMON_SECTIONS.find(s => s.id === 'client');
+  document.getElementById('clientFields').innerHTML = renderSection({ ...client, title: 'Coordonnées du client', fields: client.fields.filter(f => contactKeys.includes(f.key)) }, false);
+  host.innerHTML = COMMON_SECTIONS.map(s => renderSection(s.id === 'client' ? { ...s, title: 'Logement', fields: s.fields.filter(f => !contactKeys.includes(f.key)) } : s, false)).join('');
   attachInfoButtons(host);
 }
 
@@ -138,7 +148,8 @@ function attachInfoButtons(root = document) {
 function collectData() {
   document.querySelectorAll('[data-key]').forEach(el => {
     const k = el.dataset.key;
-    if (el.type === 'radio') { if (el.checked) state.answers[k] = el.value; }
+    if (el.type === 'checkbox') state.answers[k] = el.checked;
+    else if (el.type === 'radio') { if (el.checked) state.answers[k] = el.value; }
     else state.answers[k] = el.value;
   });
   if (state.refClient) state.answers.refClient = state.refClient;
@@ -150,7 +161,8 @@ function applyData(d) {
   document.querySelectorAll('[data-key]').forEach(el => {
     const k = el.dataset.key;
     if (d[k] === undefined || d[k] === null) return;
-    if (el.type === 'radio') { el.checked = (el.value === d[k]); }
+    if (el.type === 'checkbox') el.checked = d[k] === true;
+    else if (el.type === 'radio') { el.checked = (el.value === d[k]); }
     else el.value = d[k];
   });
   if (d.refClient) state.refClient = d.refClient;
@@ -243,7 +255,7 @@ function renderPhotos() {
       ? `<img src="${p.dataUrl}" alt="">`
       : `<div class="photo-ph">⏳<span>Chargement…</span><small>${escapeHtml(p.filename || '')}</small></div>`;
     const delBtn = p.id ? `<button class="photo-del" type="button" data-exphotodel="${i}" title="Supprimer la photo enregistrée">×</button>` : '';
-    return `<div class="photo-item">${visual}${delBtn}</div>`;
+    return `<div class="photo-item">${visual}<div class="attachment-label">${escapeHtml(p.label || '')}</div>${delBtn}</div>`;
   }).join('');
   const nw = state.newPhotos.map((p, i) => `
     <div class="photo-item">
@@ -271,20 +283,21 @@ function renderPhotos() {
         await api.post('/delete-attachment', { visiteId: state.id, attId: ph.id, field: 'Photos' });
         state.existingPhotos.splice(i, 1);
         renderPhotos();
-        toast('Photo supprimée');
+        scheduleSave(); toast('Photo supprimée');
       } catch (e) { b.disabled = false; toast('Erreur suppression', 'danger'); }
     });
   });
 }
 
 async function addPhotos(files) {
-  for (const file of files) {
+  pendingMedia++;  for (const file of files) {
     try {
       const dataUrl = await compressImage(file);
       state.newPhotos.push({ dataUrl, label: '' });
     } catch { toast('Photo illisible ignorée', 'danger'); }
   }
   renderPhotos();
+  pendingMedia--;
   scheduleSave();
 }
 
@@ -301,7 +314,7 @@ function renderCroquis() {
       ? `<img src="${c.dataUrl}" alt="croquis">`
       : `<div class="croquis-ph">⏳<span>Chargement…</span><small>${escapeHtml(c.filename || '')}</small></div>`;
     const delBtn = c.id ? `<button class="photo-del" type="button" data-excqdel="${i}" title="Supprimer le croquis enregistré">×</button>` : '';
-    return `<div class="croquis-item" style="position:relative;">${visual}${delBtn}</div>`;
+    return `<div class="croquis-item" style="position:relative;">${visual}<div class="attachment-label">${escapeHtml(c.label || '')}</div>${delBtn}</div>`;
   }).join('');
   const nw = state.newCroquis.map((c, i) => `
     <div class="croquis-item">
@@ -338,7 +351,7 @@ function renderCroquis() {
         await api.post('/delete-attachment', { visiteId: state.id, attId: cq.id, field: 'Croquis' });
         state.existingCroquis.splice(i, 1);
         renderCroquis();
-        toast('Croquis supprimé');
+        scheduleSave(); toast('Croquis supprimé');
       } catch (e) { b.disabled = false; toast('Erreur suppression', 'danger'); }
     });
   });
@@ -361,7 +374,7 @@ async function loadExistingAttachments() {
     renderPhotos();
     renderCroquis();
   } catch (e) {
-    console.warn('Chargement des pièces jointes existantes', e);
+    throw new Error('Photos ou croquis non chargés. Vérifiez la connexion puis réessayez.');
   }
 }
 
@@ -525,36 +538,87 @@ function snapshot() {
     gps: state.gps
   };
 }
+function setSaveStatus(text) {
+  document.getElementById('saveStatus').textContent = text;
+  document.getElementById('visitProgressState').textContent = text;
+}
 function persist() {
-  const snap = snapshot();
+  if (!ready || finalized) return false;
   try {
-    localStorage.setItem(storageKey, JSON.stringify(snap));
+    localStorage.setItem(storageKey, JSON.stringify({ ...snapshot(), owner: state.userName, dirty, baseAnswers, savedAt: Date.now() }));
+    if (dirty) setSaveStatus('Sur cet appareil · à envoyer');
+    return true;
   } catch {
-    // Quota dépassé (photos volumineuses) -> on sauve sans les photos
-    try {
-      localStorage.setItem(storageKey, JSON.stringify({ ...snap, newPhotos: [] }));
-      if (!state.quotaWarned) { toast('Photos non sauvegardées localement (mémoire pleine)', 'danger'); state.quotaWarned = true; }
-    } catch { /* abandon silencieux */ }
+    setSaveStatus('Non sauvegardé · espace insuffisant');
+    if (!state.quotaWarned) { toast('Stockage plein : enregistrez en ligne avant de quitter.', 'danger'); state.quotaWarned = true; }
+    return false;
   }
 }
 function scheduleSave() {
+  if (!ready || operation || finalized) return;
+  dirty = true;
+  setSaveStatus('Sauvegarde sur cet appareil…');
   clearTimeout(saveTimer);
-  const st = document.getElementById('saveStatus');
-  saveTimer = setTimeout(() => {
-    persist();
-    st.textContent = '💾 Sauvegardé';
-    setTimeout(() => { st.textContent = '💾 Auto'; }, 1200);
-  }, 700);
+  saveTimer = setTimeout(persist, 250);
+  renderReview();
 }
-
+function markSynced() {
+  dirty = false;
+  clearTimeout(saveTimer);
+  try { localStorage.removeItem(storageKey); } catch {}
+  setSaveStatus('Enregistré en ligne');
+}
 function migrateStorageKey() {
-  const newKey = `visite:${state.id}`;
-  if (newKey !== storageKey) {
-    try { localStorage.removeItem(storageKey); } catch {}
-    storageKey = newKey;
-    history.replaceState(null, '', `/visite.html?id=${state.id}`);
+  const oldKey = storageKey;
+  storageKey = draftKey();
+  history.replaceState(null, '', `/visite.html?id=${state.id}`);
+  // Conserver l'ancien brouillon si la copie échoue.
+  if (persist() && oldKey !== storageKey) {
+    try { localStorage.removeItem(oldKey); } catch {}
   }
 }
+function readLocalDraft() {
+  try {
+    let draft = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    // Migration des anciens brouillons uniquement si le technicien correspond.
+    if (!draft) {
+      const legacyKey = `visite:${state.id || 'new'}`;
+      const legacy = JSON.parse(localStorage.getItem(legacyKey) || 'null');
+      if (legacy?.data?.technicien === state.userName) {
+        draft = { ...legacy, owner: state.userName, dirty: true };
+        localStorage.setItem(storageKey, JSON.stringify(draft));
+        localStorage.removeItem(legacyKey);
+      }
+    }
+    return draft?.owner === state.userName && draft.dirty !== false ? draft : null;
+  } catch { return null; }
+}
+function restoreLocal(draft) {
+  state.newPhotos = draft.newPhotos || [];
+  state.newCroquis = draft.newCroquis || [];
+  state.materiel = draft.materiel || [];
+  state.taches = draft.taches || [];
+  state.splitsInt = draft.splitsInt || [];
+  state.clientProspectId = draft.clientProspectId || null;
+  state.clientProspectName = draft.clientProspectName || '';
+  state.gps = draft.gps || null;
+  // Si la création avait réussi avant une interruption, reprendre le même dossier.
+  if (!state.id && draft.id) { state.id = draft.id; storageKey = draftKey(); history.replaceState(null, '', `/visite.html?id=${state.id}`); }
+  // Réconcilier les envois dont la réponse a pu être perdue.
+  for (const [pending, existing] of [['newPhotos', 'existingPhotos'], ['newCroquis', 'existingCroquis']]) {
+    state[pending] = state[pending].filter(p => {
+      const uploaded = p.filename && state[existing].find(a => a.filename === p.filename);
+      if (uploaded) { Object.assign(uploaded, p); return false; }
+      return true;
+    });
+  }
+  dirty = true;
+}
+window.addEventListener('pagehide', () => { if (dirty) { clearTimeout(saveTimer); persist(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden && dirty) { clearTimeout(saveTimer); persist(); } });
+window.addEventListener('beforeunload', e => {
+  if (operation || (dirty && !persist())) { e.preventDefault(); e.returnValue = ''; }
+});
 
 // ===== Validation =====
 function flashField(el) {
@@ -578,30 +642,45 @@ function showBanner(msgs) {
   setTimeout(() => b.classList.remove('show'), 6000);
 }
 
-function validateFinal() {
-  const problems = [];
-  let firstEl = null;
-  const fail = (el, label) => { problems.push(label); if (!firstEl) firstEl = el; };
-
-  const clientEl = document.querySelector('[data-key="client"]');
-  if (!clientEl.value.trim()) fail(clientEl, 'Nom du client');
-
-  const typeEl = document.getElementById('typeProjet');
-  if (!typeEl.value) fail(typeEl, 'Type de projet');
-
-  if (!document.querySelector('input[name="faisabilite"]:checked')) fail(document.getElementById('faisaSeg'), 'Faisabilité');
-
-  if (sigTech.isEmpty()) fail(document.getElementById('sigTechArea'), 'Signature technicien');
-  if (sigClient.isEmpty()) fail(document.getElementById('sigClientArea'), 'Signature client');
-
-  if (problems.length) {
-    showBanner(problems);
-    if (firstEl) flashField(firstEl);
-    toast('Complétez les champs manquants', 'danger');
-    return false;
+function validationProblems() {
+  const d = collectData(), problems = [];
+  const add = (key, label) => problems.push({ key, label });
+  if (!d.client?.trim()) add('client', 'Nom du client');
+  if (!d.adresse?.trim()) add('adresse', 'Adresse du chantier');
+  if (!d.typeProjet) add('typeProjet', 'Type de projet');
+  if (!d.dateVisite) add('dateVisite', 'Date de visite');
+  if (!d.faisabilite) add('faisabilite', 'Faisabilité');
+  if (['Faisable sous conditions', 'Non faisable'].includes(d.faisabilite) && !d.reserves?.trim()) add('reserves', 'Réserves / motif de la conclusion');
+  if (d.faisabilite !== 'Non faisable') {
+    blocksForType(d.typeProjet).forEach(block => {
+      if (d[`na_${block.id}`] === true) return;
+      (TECH_REQUIRED[block.id] || []).forEach(key => {
+        if (!String(d[key] || '').trim()) add(key, block.fields.find(f => f.key === key)?.label || key);
+      });
+    });
   }
-  showBanner([]);
-  return true;
+  if (sigTech.isEmpty()) add('sigTech', 'Signature technicien');
+  if (sigClient.isEmpty()) add('sigClient', 'Signature client');
+  return problems;
+}
+function renderReview() {
+  const host = document.getElementById('visitReview');
+  if (!host || !sigTech || !sigClient) return;
+  const d = collectData(), problems = validationProblems();
+  host.innerHTML = `<p><strong>${escapeHtml(d.client || 'Client à renseigner')}</strong><br>${escapeHtml(d.typeProjet || 'Projet à sélectionner')}</p>
+    <p>${state.existingPhotos.length + state.newPhotos.length} photo(s) · ${state.existingCroquis.length + state.newCroquis.length} croquis</p>` +
+    (problems.length ? `<p><strong>${problems.length} point(s) à compléter</strong></p><ul>${problems.map(p => `<li>${escapeHtml(p.label)}</li>`).join('')}</ul>` : '<p>Les informations requises sont complètes. Vous pouvez terminer la visite.</p>');
+}
+function validateFinal() {
+  const problems = validationProblems();
+  showBanner(problems.map(p => escapeHtml(p.label)));
+  renderReview();
+  if (!problems.length) return true;
+  const key = problems[0].key;
+  const el = document.querySelector(`[data-key="${key}"]`) || document.getElementById(key + 'Area');
+  if (el) flashField(el);
+  toast('Complétez les points indiqués dans le récapitulatif', 'danger');
+  return false;
 }
 
 // ===== Construction des champs Airtable =====
@@ -614,7 +693,7 @@ function buildFields(statut) {
     'Adresse': d.adresse || '',
     'Type de logement': d.typeLogement || '',
     'Type de projet': d.typeProjet || '',
-    'Date visite': d.dateVisite || new Date().toISOString().slice(0, 10),
+    'Date visite': d.dateVisite || localDate(),
     'Technicien': d.technicien || state.userName,
     'Statut': statut,
     'Faisabilité': d.faisabilite || '',
@@ -625,8 +704,9 @@ function buildFields(statut) {
     'Équipe pose': d.equipePose || '',
     'Réponses (JSON)': JSON.stringify({
       answers: d,
-      photoLabels: state.newPhotos.map(p => p.label).filter(Boolean),
-      croquisLabels: state.newCroquis.map(c => c.label).filter(Boolean),
+      photoLabels: [...state.existingPhotos, ...state.newPhotos].map(p => p.label || ''),
+      attachmentLabels: Object.fromEntries([...state.existingPhotos, ...state.newPhotos, ...state.existingCroquis, ...state.newCroquis].filter(p => p.filename).map(p => [p.filename, p.label || ''])),
+      croquisLabels: [...state.existingCroquis, ...state.newCroquis].map(c => c.label || ''),
       materiel: state.materiel.filter(m => (m.designation || '').trim()),
       taches: state.taches.filter(t => (t.label || '').trim()),
       splitsInt: state.splitsInt.filter(u => (u.emplacement || u.type || u.frigoM || u.elecM || '').toString().trim()),
@@ -636,8 +716,8 @@ function buildFields(statut) {
     'Signature client': sigClient.isEmpty() ? '' : sigClient.toDataURL()
   };
   if (state.refClient) f['Réf. client (Abonnements)'] = state.refClient;
-  if (state.clientProspectId) f['Client/Prospect'] = [state.clientProspectId];
-  Object.keys(f).forEach(k => { if (f[k] === '' || f[k] == null) delete f[k]; });
+  f['Client/Prospect'] = state.clientProspectId ? [state.clientProspectId] : [];
+  Object.keys(f).forEach(k => { if (f[k] === '') f[k] = null; });
   return f;
 }
 
@@ -650,7 +730,7 @@ function buildPdfPayload() {
     .map(fl => [fl.label, d[fl.key]])
     .filter(([, v]) => v != null && String(v).trim() !== '');
   COMMON_SECTIONS.forEach(s => { const rows = toRows(s.fields); if (rows.length) sections.push({ title: s.title, rows }); });
-  blocksForType(type).forEach(b => { const rows = toRows(b.fields); if (rows.length) sections.push({ title: b.title, rows }); });
+  blocksForType(type).forEach(b => { const rows = d[`na_${b.id}`] ? [['Section', 'Non applicable']] : toRows(b.fields); if (rows.length) sections.push({ title: b.title, rows }); });
 
   const photos = state.existingPhotos.filter(p => p.dataUrl).map(p => ({ dataUrl: p.dataUrl, label: p.label }))
     .concat(state.newPhotos.map(p => ({ dataUrl: p.dataUrl, label: p.label })));
@@ -688,7 +768,7 @@ function buildPdfPayload() {
 
 function pdfFilename(d) {
   const nom = (d.client || 'client').replace(/[^a-z0-9]/gi, '_');
-  const date = d.dateVisite || new Date().toISOString().slice(0, 10);
+  const date = d.dateVisite || localDate();
   return `visite_${nom}_${date}.pdf`;
 }
 
@@ -696,116 +776,130 @@ function pdfFilename(d) {
 // Une pièce jointe ne bascule en "existante" QUE si son upload Airtable a réussi.
 // Les échecs restent dans newPhotos/newCroquis pour permettre un retry — et on
 // renvoie le nombre d'échecs au caller pour qu'il décide de poursuivre ou non.
-async function saveRecord(statut) {
-  const fields = buildFields(statut);
+async function ensureAttachments() {
+  await attachmentsReady;
+  if ([...state.existingPhotos, ...state.existingCroquis].some(p => !p.dataUrl)) {
+    await loadExistingAttachments();
+  }
+  if ([...state.existingPhotos, ...state.existingCroquis].some(p => !p.dataUrl)) {
+    throw new Error('Une pièce jointe ne peut pas être chargée. Le PDF ne sera pas généré incomplet. Réessayez dans Photos.');
+  }
+}
+function prepareFilenames() {
+  state.newPhotos.forEach(p => { p.filename ||= `photo-${crypto.randomUUID()}.jpg`; });
+  state.newCroquis.forEach(p => { p.filename ||= `croquis-${crypto.randomUUID()}.png`; });
+}
+async function saveRecord() {
+  if (loadFailed) throw new Error('Rechargez la visite avec une connexion avant de l’envoyer. Vos modifications restent sur cet appareil.');
+  prepareFilenames();
+  persist();
+  const fields = buildFields('Brouillon');
   let rec;
-  if (state.id) {
-    ({ visite: rec } = await api.patch(`/visites/${state.id}`, { fields }));
-  } else {
+  if (state.id) ({ visite: rec } = await api.patch(`/visites/${state.id}`, { fields }));
+  else {
     ({ visite: rec } = await api.post('/visites', { fields }));
     state.id = rec.id;
     migrateStorageKey();
   }
-  // Photos
-  const photosOk = [], photosKo = [];
-  for (const p of state.newPhotos) {
-    const base64 = p.dataUrl.split(',')[1];
-    const fname = (p.label ? p.label.replace(/[^a-z0-9]/gi, '_') : 'photo') + '.jpg';
-    try {
-      await api.post('/upload-photo', { visiteId: state.id, photoBase64: base64, filename: fname });
-      photosOk.push(p);
-    } catch (e) { console.error('upload photo', e); photosKo.push(p); }
+  // Le nom unique persiste dans le brouillon et permet de reconnaître un envoi
+  // réussi même si sa réponse réseau a été perdue.
+  let attachFails = 0;
+  for (const [pending, existing, field, endpoint, base64Key] of [
+    ['newPhotos', 'existingPhotos', 'Photos', '/upload-photo', 'photoBase64'],
+    ['newCroquis', 'existingCroquis', 'Croquis', '/upload-croquis', 'croquisBase64']
+  ]) {
+    for (const item of [...state[pending]]) {
+      try {
+        const already = (rec.fields?.[field] || []).find(a => a.filename === item.filename);
+        if (!already) await api.post(endpoint, { visiteId: state.id, [base64Key]: item.dataUrl.split(',')[1], filename: item.filename });
+        const known = state[existing].find(p => p.filename === item.filename);
+        if (known) Object.assign(known, item);
+        else state[existing].push({ ...item, id: already?.id });
+        state[pending].splice(state[pending].indexOf(item), 1);
+        persist();
+      } catch (e) { attachFails++; console.error('Pièce jointe non envoyée', e); }
+    }
   }
-  state.existingPhotos.push(...photosOk.map(p => ({ dataUrl: p.dataUrl, label: p.label })));
-  state.newPhotos = photosKo;
-  renderPhotos();
-  // Croquis
-  const croquisOk = [], croquisKo = [];
-  for (const c of state.newCroquis) {
-    const base64 = c.dataUrl.split(',')[1];
-    const fname = (c.label ? c.label.replace(/[^a-z0-9]/gi, '_') : 'croquis') + '.png';
-    try {
-      await api.post('/upload-croquis', { visiteId: state.id, croquisBase64: base64, filename: fname });
-      croquisOk.push(c);
-    } catch (e) { console.error('upload croquis', e); croquisKo.push(c); }
+  // Récupérer les IDs pour permettre la suppression sans recharger la page.
+  const { visite: updated } = await api.get(`/visites/${state.id}`);
+  for (const [key, field] of [['existingPhotos', 'Photos'], ['existingCroquis', 'Croquis']]) {
+    for (const p of state[key]) p.id ||= (updated.fields?.[field] || []).find(a => a.filename === p.filename)?.id;
   }
-  state.existingCroquis.push(...croquisOk.map(c => ({ dataUrl: c.dataUrl, label: c.label })));
-  state.newCroquis = croquisKo;
-  renderCroquis();
-  return { rec, attachFails: photosKo.length + croquisKo.length };
+  const finalFields = buildFields('Brouillon');
+  await api.patch(`/visites/${state.id}`, { fields: finalFields });
+  baseAnswers = finalFields['Réponses (JSON)'];
+  persist(); renderPhotos(); renderCroquis(); renderReview();
+  return { attachFails };
 }
 
-// ===== Boutons =====
-function busy(btn, label) { btn.disabled = true; btn._old = btn.innerHTML; btn.innerHTML = `<span class="spinner"></span> ${label}`; }
-function unbusy(btn) { btn.disabled = false; if (btn._old) btn.innerHTML = btn._old; }
-
+// ===== Actions exclusives : le contenu reste stable pendant les envois =====
+function busy(btn, label) { btn.disabled = true; btn._old ??= btn.innerHTML; btn.innerHTML = `<span class="spinner"></span> ${label}`; }
+function unbusy(btn) { btn.disabled = false; if (btn._old) { btn.innerHTML = btn._old; delete btn._old; } }
+function beginOperation(btn, label) {
+  if (pendingMedia) { toast('Les photos sont en cours de préparation. Réessayez dans un instant.'); return false; }
+  if (operation) return false;
+  clearTimeout(saveTimer);
+  persist();
+  operation = true;
+  document.querySelector('main').inert = true;
+  document.getElementById('backBtn').disabled = true;
+  busy(btn, label);
+  setSaveStatus('Envoi en cours…');
+  return true;
+}
+function endOperation(btn) {
+  operation = false;
+  document.querySelector('main').inert = false;
+  document.getElementById('backBtn').disabled = false;
+  unbusy(btn);
+  if (dirty) persist();
+}
 async function onDraft() {
+  if (!collectData().client?.trim()) { flashField(document.querySelector('[data-key="client"]')); toast('Nom du client requis', 'danger'); return; }
   const btn = document.getElementById('draftBtn');
-  const clientEl = document.querySelector('[data-key="client"]');
-  if (!clientEl.value.trim()) { flashField(clientEl); toast('Nom du client requis', 'danger'); return; }
-  busy(btn, 'Sauvegarde...');
+  if (!beginOperation(btn, 'Enregistrement…')) return;
+  dirty = true;
   try {
-    const { attachFails } = await saveRecord('Brouillon');
-    persist();
-    if (attachFails) toast(`${attachFails} pièce(s) jointe(s) non envoyée(s) — réessayez`, 'danger');
-    else toast('Brouillon enregistré', 'success');
+    const { attachFails } = await saveRecord();
+    if (attachFails) throw new Error(`${attachFails} pièce(s) jointe(s) non envoyée(s). Réessayez avant de quitter.`);
+    markSynced(); toast('Brouillon enregistré en ligne', 'success');
   } catch (e) { toast(e.message, 'danger'); }
-  finally { unbusy(btn); }
+  finally { endOperation(btn); }
 }
-
 async function onPreview() {
-  // Sur mobile, doc.output('dataurlnewwindow') ouvre souvent une page blanche
-  // (data URL trop longue, blocage popup) → on télécharge le PDF, l'OS l'ouvre.
   const btn = document.getElementById('previewBtn');
-  busy(btn, 'PDF...');
+  if (!beginOperation(btn, 'PDF…')) return;
   try {
+    await ensureAttachments();
     const doc = await generatePdf(buildPdfPayload());
     doc.save('apercu-' + pdfFilename(collectData()));
-    toast('PDF d\'aperçu téléchargé', 'success');
-  } catch (e) { console.error(e); toast('Erreur PDF: ' + e.message, 'danger'); }
-  finally { unbusy(btn); }
+    toast('PDF d’aperçu téléchargé', 'success');
+  } catch (e) { toast(e.message, 'danger'); }
+  finally { endOperation(btn); if (!dirty) setSaveStatus(state.id ? 'Enregistré en ligne' : 'Nouvelle visite'); }
 }
-
 async function onFinalize() {
-  if (!validateFinal()) return;
-  if (!confirm('Clôturer la visite ?\nLe statut passera en « Terminée » et le rapport PDF sera généré.')) return;
+  if (operation || !validateFinal()) return;
+  if (!confirm('Terminer la visite et enregistrer son rapport PDF ?')) return;
   const btn = document.getElementById('finalizeBtn');
-  busy(btn, 'Enregistrement...');
+  if (!beginOperation(btn, 'Enregistrement…')) return;
+  dirty = true;
   try {
-    const d = collectData();
-    const { attachFails } = await saveRecord('Terminée');
-    if (attachFails) {
-      // On ne clôture pas tant que les pièces jointes ne sont pas en base —
-      // sinon l'utilisateur ne pourrait pas relancer sans rouvrir la visite.
-      toast(`${attachFails} pièce(s) jointe(s) non envoyée(s). Vérifiez la connexion puis retapez « Valider ».`, 'danger');
-      unbusy(btn);
-      return;
-    }
-
-    busy(btn, 'PDF...');
+    const { attachFails } = await saveRecord();
+    if (attachFails) throw new Error(`${attachFails} pièce(s) jointe(s) non envoyée(s). La visite reste en brouillon.`);
+    await ensureAttachments();
+    busy(btn, 'PDF…');
     const doc = await generatePdf(buildPdfPayload());
-    const fname = pdfFilename(d);
-    doc.save(fname);
+    const fname = pdfFilename(collectData());
     const pdfBase64 = doc.output('datauristring').split(',')[1];
-    try {
-      await api.post('/upload-pdf', { visiteId: state.id, pdfBase64, filename: fname });
-    } catch (e) {
-      // PDF téléchargé localement mais non joint en base : on reste sur la page
-      // pour permettre un retry plutôt que de filer un faux signal de succès.
-      console.error('upload pdf', e);
-      toast('PDF téléchargé, mais envoi à Airtable échoué. Restez en ligne puis retapez « Valider ».', 'danger');
-      unbusy(btn);
-      return;
-    }
-
-    try { localStorage.removeItem(storageKey); } catch {}
-    toast('Visite enregistrée', 'success');
+    await api.post('/upload-pdf', { visiteId: state.id, pdfBase64, filename: fname });
+    // Dernière écriture seulement après confirmation de tous les envois.
+    await api.patch(`/visites/${state.id}`, { fields: { 'Statut': 'Terminée' } });
+    markSynced(); finalized = true;
+    try { doc.save(fname); } catch { toast('Rapport enregistré en ligne ; téléchargement indisponible.', 'danger'); }
+    toast('Visite terminée et rapport enregistré', 'success');
     setTimeout(() => { location.href = '/dashboard.html'; }, 1400);
-  } catch (e) {
-    console.error(e);
-    toast('Erreur: ' + e.message, 'danger');
-    unbusy(btn);
-  }
+  } catch (e) { toast('Clôture non confirmée : ' + e.message, 'danger'); }
+  finally { if (!finalized) endOperation(btn); }
 }
 
 // ===== Client/Prospect (table dédiée Visites) =====
@@ -974,7 +1068,9 @@ function initVisitSteps() {
     });
     label.textContent = `Étape ${current + 1} sur ${steps.length} · ${names[current]}`;
     prev.disabled = current === 0;
-    next.textContent = current === steps.length - 1 ? '↑ Revenir au bilan' : `Continuer vers ${names[current + 1].toLowerCase()} →`;
+    next.hidden = current === steps.length - 1;
+    renderReview();
+    next.textContent = current === steps.length - 1 ? '' : `Continuer vers ${names[current + 1].toLowerCase()} →`;
     if (move) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   buttons.forEach((b, i) => b.addEventListener('click', () => render(i)));
@@ -984,7 +1080,7 @@ function initVisitSteps() {
 }
 
 (async function init() {
-  await meReady;
+  if (!await meReady) { document.querySelector('main').inert = true; return; }
 
   // Select type
   document.getElementById('typeProjet').innerHTML =
@@ -1000,23 +1096,28 @@ function initVisitSteps() {
   attachVoiceButtons(document); // pour les textareas statiques (réserves, recommandations)
 
   // Signatures
-  sigTech = initSignaturePad(document.getElementById('sigTech'), document.getElementById('sigTechPh'));
-  sigClient = initSignaturePad(document.getElementById('sigClient'), document.getElementById('sigClientPh'));
+  sigTech = initSignaturePad(document.getElementById('sigTech'), document.getElementById('sigTechPh'), scheduleSave);
+  sigClient = initSignaturePad(document.getElementById('sigClient'), document.getElementById('sigClientPh'), scheduleSave);
 
   // Données initiales : Airtable (?id) sinon brouillon local
   let initial = null;
   let colOverride = null;
+  const localDraft = readLocalDraft();
+  if (!state.id && localDraft?.id) restoreLocal(localDraft);
+  let remoteLoaded = false;
   if (state.id) {
     try {
       const { visite } = await api.get(`/visites/${state.id}`);
       const f = visite.fields || {};
+      remoteLoaded = true;
+      baseAnswers = f['Réponses (JSON)'] || '{}';
       let parsed = {};
       try { parsed = JSON.parse(f['Réponses (JSON)'] || '{}'); } catch {}
       initial = { data: parsed.answers || {}, sigTech: f['Signature technicien'], sigClient: f['Signature client'] };
       // photos existantes (Airtable) : on stocke l'id + filename pour permettre suppression + lazy-load
-      (f['Photos'] || []).forEach(att => state.existingPhotos.push({ id: att.id, filename: att.filename, label: '' }));
+      (f['Photos'] || []).forEach((att, i) => state.existingPhotos.push({ id: att.id, filename: att.filename, label: parsed.attachmentLabels?.[att.filename] ?? parsed.photoLabels?.[i] ?? '' }));
       // croquis existants
-      (f['Croquis'] || []).forEach(att => state.existingCroquis.push({ id: att.id, filename: att.filename, label: '' }));
+      (f['Croquis'] || []).forEach((att, i) => state.existingCroquis.push({ id: att.id, filename: att.filename, label: parsed.attachmentLabels?.[att.filename] ?? parsed.croquisLabels?.[i] ?? '' }));
       state.materiel = parsed.materiel || [];
       state.taches = parsed.taches || [];
       state.splitsInt = parsed.splitsInt || [];
@@ -1036,19 +1137,18 @@ function initVisitSteps() {
         datePosePrevue: f['Date pose prévue'] || '',
         equipePose: f['Équipe pose'] || ''
       };
-    } catch (e) { toast('Visite introuvable', 'danger'); }
-  } else {
-    try { initial = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch {}
-    if (initial) {
-      state.newPhotos = initial.newPhotos || [];
-      state.newCroquis = initial.newCroquis || [];
-      state.materiel = initial.materiel || [];
-      state.taches = initial.taches || [];
-      state.splitsInt = initial.splitsInt || [];
-      state.clientProspectId = initial.clientProspectId || null;
-      state.clientProspectName = initial.clientProspectName || '';
-      state.gps = initial.gps || null;
+    } catch (e) {
+      if (!localDraft) { toast('Impossible de charger la visite. Réessayez ; aucune donnée ne sera écrasée.', 'danger'); document.querySelector('main').inert = true; return; }
+      loadFailed = true;
+      toast('Serveur indisponible : reprise du brouillon de cet appareil.', 'danger');
     }
+  }
+  if (localDraft) {
+    const conflict = remoteLoaded && localDraft.baseAnswers && localDraft.baseAnswers !== baseAnswers;
+    if (!conflict || confirm('Cette visite a aussi été modifiée en ligne. Reprendre vos modifications locales ? Annuler conserve la version en ligne.')) {
+      initial = localDraft; colOverride = null; restoreLocal(localDraft);
+      toast('Modifications de cet appareil restaurées. Enregistrez-les en ligne.');
+    } else { try { localStorage.removeItem(storageKey); } catch {} }
   }
 
   // Type d'abord (pour rendre les bonnes sections), puis le reste
@@ -1058,7 +1158,7 @@ function initVisitSteps() {
 
   // Technicien par défaut + date du jour
   setVal('technicien', state.userName);
-  setVal('dateVisite', new Date().toISOString().slice(0, 10));
+  setVal('dateVisite', localDate());
 
   // On amorce le buffer answers avec tout ce qui a été saisi auparavant
   // (Airtable ou brouillon local) — y compris des champs pas encore visibles.
@@ -1074,8 +1174,8 @@ function initVisitSteps() {
       if (el) el.value = v;
     }
   }
-  if (initial?.sigTech) sigTech.fromDataURL(initial.sigTech);
-  if (initial?.sigClient) sigClient.fromDataURL(initial.sigClient);
+  if (initial?.sigTech) await sigTech.fromDataURL(initial.sigTech);
+  if (initial?.sigClient) await sigClient.fromDataURL(initial.sigClient);
   updateSeg();
   renderPhotos();
   renderCroquis();
@@ -1083,7 +1183,7 @@ function initVisitSteps() {
   renderTaches();
   renderDimensionnement();
   // Lazy-load des pièces jointes Airtable (proxy serveur → data: URL respectant la CSP)
-  loadExistingAttachments();
+  attachmentsReady = loadExistingAttachments().catch(e => { toast(e.message, 'danger'); });
   if (state.gps) document.getElementById('gpsLabel').textContent = `(${state.gps.lat.toFixed(5)}, ${state.gps.lng.toFixed(5)})`;
 
   // ===== Events =====
@@ -1123,6 +1223,8 @@ function initVisitSteps() {
   wireProspectSearch();
   wireClientSearch();
   refreshProspectChip();
+  ready = true;
+  setSaveStatus(dirty ? 'Sur cet appareil · à envoyer' : (state.id ? 'Enregistré en ligne' : 'Nouvelle visite'));
   initVisitSteps();
 })();
 
