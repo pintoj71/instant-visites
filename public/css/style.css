@@ -482,6 +482,27 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 .actions-bar button { flex: 1; }
 .save-status { font-size: 11px; color: rgba(255,255,255,0.85); padding: 4px 8px; white-space: nowrap; }
 
+/* Parcours de visite : navigation courte, lisible au téléphone */
+.visit-steps {
+  position: sticky; top: 0; z-index: 40; display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 4px; padding: 8px 0; background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.visit-step { border: 0; background: transparent; color: var(--muted); padding: 7px 3px; min-width: 0; cursor: pointer; border-radius: 8px; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.visit-step span { width: 23px; height: 23px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 50%; font-size: 11px; font-weight: 700; }
+.visit-step b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.visit-step.is-active { color: var(--primary); background: #fdf3e6; }
+.visit-step.is-active span { background: var(--accent); color: #fff; border-color: var(--accent); }
+.visit-progress { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 11px; margin: 0 0 10px; }
+.visit-progress span:last-child { color: var(--ok); }
+.visit-step-panel[hidden] { display: none; }
+.visit-step-actions { display: flex; gap: 8px; margin: 14px 0; }
+.visit-step-actions button { flex: 1; }
+@media (max-width: 480px) {
+  .visit-step { font-size: 10px; }
+  .visit-step b { max-width: 58px; }
+  .visit-progress { font-size: 10px; }
+}
+
 /* Context card */
 .ctx { display: flex; align-items: center; gap: 10px; }
 .ctx .pill { background: var(--accent); color: #fff; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 700; }

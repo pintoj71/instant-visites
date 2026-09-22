@@ -5,6 +5,7 @@ export function initSignaturePad(canvas, placeholder) {
 
   function resize() {
     const r = canvas.getBoundingClientRect();
+    if (!r.width || !r.height) return;
     const ratio = window.devicePixelRatio || 1;
     const data = canvas.width ? canvas.toDataURL() : null;
     canvas.width = r.width * ratio;

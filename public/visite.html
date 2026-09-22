@@ -21,7 +21,17 @@
 <main>
   <div class="error-banner" id="errorBanner"></div>
 
+  <nav class="visit-steps" id="visitSteps" aria-label="Étapes de la visite">
+    <button type="button" class="visit-step is-active" data-visit-step="projet" aria-current="step"><span>1</span><b>Projet</b></button>
+    <button type="button" class="visit-step" data-visit-step="releve"><span>2</span><b>Relevé</b></button>
+    <button type="button" class="visit-step" data-visit-step="preuves"><span>3</span><b>Photos</b></button>
+    <button type="button" class="visit-step" data-visit-step="bilan"><span>4</span><b>Bilan</b></button>
+    <button type="button" class="visit-step" data-visit-step="pose"><span>5</span><b>Pose</b></button>
+  </nav>
+  <div class="visit-progress" aria-live="polite"><span id="visitProgressLabel">Étape 1 sur 5 · Projet</span><span id="visitProgressState">Enregistrement automatique</span></div>
+
   <!-- Type de projet (détecteur) + recherche client -->
+  <section class="visit-step-panel" data-visit-panel="projet">
   <div class="card">
     <h2>🧭 Type de projet</h2>
     <select id="typeProjet" data-key="typeProjet">
@@ -44,7 +54,9 @@
       <div id="clientResults"></div>
     </details>
   </div>
+  </section>
 
+  <section class="visit-step-panel" data-visit-panel="releve">
   <!-- Sections communes (rendu dynamique) -->
   <div id="commonSections"></div>
 
@@ -53,8 +65,10 @@
   <div class="card" id="typeHint" style="display:none;">
     <p class="muted">Sélectionnez un type de projet pour afficher les points de contrôle spécifiques.</p>
   </div>
+  </section>
 
   <!-- Photos -->
+  <section class="visit-step-panel" data-visit-panel="preuves">
   <div class="card">
     <h2>📷 Photos du lieu</h2>
     <p class="muted">Emplacement pressenti, tableau électrique, point d'évacuation, façade... Ajoutez un libellé sous chaque photo.</p>
@@ -75,8 +89,10 @@
     <div class="croquis-grid" id="croquisGrid"></div>
     <button type="button" class="btn ghost small" id="croquisAdd" style="margin-top:10px;">+ Nouveau croquis</button>
   </div>
+  </section>
 
   <!-- Faisabilité & conclusion -->
+  <section class="visit-step-panel" data-visit-panel="bilan">
   <div class="card">
     <h2>🎯 Faisabilité & conclusion</h2>
     <label>Faisabilité du projet</label>
@@ -107,8 +123,10 @@
     <p class="muted">Calcul auto à partir de la surface, hauteur, isolation et type de projet saisis. Estimatif — à confirmer par BET sur les projets sensibles.</p>
     <div id="dimensionnementBody" class="dim-grid"></div>
   </div>
+  </section>
 
   <!-- Préparation du chantier (fil conducteur) -->
+  <section class="visit-step-panel" data-visit-panel="pose">
   <div class="card">
     <h2>🏗️ Préparation du chantier</h2>
     <p class="muted">Transforme la visite en feuille de route pour la pose à venir.</p>
@@ -183,6 +201,12 @@
         <button class="btn ghost small" id="clearClient" style="margin-top:6px;">Effacer</button>
       </div>
     </div>
+  </div>
+  </section>
+
+  <div class="visit-step-actions" id="visitStepActions">
+    <button type="button" class="btn ghost" id="visitPrev" disabled>← Précédent</button>
+    <button type="button" class="btn dark" id="visitNext">Continuer vers le relevé →</button>
   </div>
 
   <div class="actions-bar">

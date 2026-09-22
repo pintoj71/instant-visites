@@ -558,6 +558,11 @@ function migrateStorageKey() {
 
 // ===== Validation =====
 function flashField(el) {
+  const panel = el.closest('[data-visit-panel]');
+  if (panel?.hidden) document.querySelector(`[data-visit-step="${panel.dataset.visitPanel}"]`)?.click();
+  for (let parent = el.parentElement; parent; parent = parent.parentElement) {
+    if (parent.tagName === 'DETAILS') parent.open = true;
+  }
   const card = el.closest('.card') || el.closest('details');
   const holder = el.closest('.field') || el.closest('.with-voice') || el.parentElement;
   holder.classList.add('field-error');
@@ -947,6 +952,37 @@ function wireClientSearch() {
 // ===== Init =====
 let sigTech, sigClient;
 
+// Parcours terrain : un seul bloc visible à la fois, sans retirer les champs
+// du DOM (les réponses continuent donc à être sauvegardées automatiquement).
+function initVisitSteps() {
+  const steps = ['projet', 'releve', 'preuves', 'bilan', 'pose'];
+  const names = ['Projet', 'Relevé technique', 'Photos & croquis', 'Bilan', 'Préparation de la pose'];
+  let current = 0;
+  const panels = [...document.querySelectorAll('[data-visit-panel]')];
+  const buttons = [...document.querySelectorAll('[data-visit-step]')];
+  const prev = document.getElementById('visitPrev');
+  const next = document.getElementById('visitNext');
+  const label = document.getElementById('visitProgressLabel');
+  const render = (index, move = true) => {
+    current = Math.max(0, Math.min(steps.length - 1, index));
+    const step = steps[current];
+    panels.forEach(p => { p.hidden = p.dataset.visitPanel !== step; });
+    buttons.forEach((b, i) => {
+      const active = i === current;
+      b.classList.toggle('is-active', active);
+      if (active) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+    });
+    label.textContent = `Étape ${current + 1} sur ${steps.length} · ${names[current]}`;
+    prev.disabled = current === 0;
+    next.textContent = current === steps.length - 1 ? '↑ Revenir au bilan' : `Continuer vers ${names[current + 1].toLowerCase()} →`;
+    if (move) window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  buttons.forEach((b, i) => b.addEventListener('click', () => render(i)));
+  prev.addEventListener('click', () => render(current - 1));
+  next.addEventListener('click', () => render(current === steps.length - 1 ? 3 : current + 1));
+  render(0, false);
+}
+
 (async function init() {
   await meReady;
 
@@ -1087,6 +1123,7 @@ let sigTech, sigClient;
   wireProspectSearch();
   wireClientSearch();
   refreshProspectChip();
+  initVisitSteps();
 })();
 
 function captureGps() {
