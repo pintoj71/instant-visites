@@ -4,16 +4,38 @@
 import { LOGO_PNG, LOGO_W, LOGO_H } from '/js/logo.js';
 
 let jsPDFLib = null;
+let pdfLoading = null;
+function loadPdfScript(src, label) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    const finish = (error) => {
+      clearTimeout(timer);
+      script.onload = script.onerror = null;
+      if (error) { script.remove(); reject(error); }
+      else resolve();
+    };
+    const timer = setTimeout(() => finish(new Error(
+      label + ' ne se charge pas après 20 secondes. Vérifiez la connexion puis réessayez.'
+    )), 20000);
+    script.onload = () => finish();
+    script.onerror = () => finish(new Error(label + ' indisponible. Vérifiez la connexion puis réessayez.'));
+    script.src = src;
+    document.head.appendChild(script);
+  });
+}
 async function loadJsPDF() {
   if (jsPDFLib) return jsPDFLib;
-  const add = (src) => new Promise((res, rej) => {
-    const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej;
-    document.head.appendChild(s);
-  });
-  await add('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js');
-  await add('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js');
-  jsPDFLib = window.jspdf.jsPDF;
-  return jsPDFLib;
+  if (!pdfLoading) {
+    pdfLoading = (async () => {
+      if (!window.jspdf?.jsPDF) await loadPdfScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js', 'Le moteur PDF');
+      if (!window.jspdf?.jsPDF) throw new Error('Le moteur PDF n’a pas démarré.');
+      if (!window.jspdf.jsPDF.API.autoTable) await loadPdfScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js', 'Le module de tableaux PDF');
+      if (!window.jspdf.jsPDF.API.autoTable) throw new Error('Le module de tableaux PDF n’a pas démarré.');
+      jsPDFLib = window.jspdf.jsPDF;
+      return jsPDFLib;
+    })().finally(() => { pdfLoading = null; });
+  }
+  return pdfLoading;
 }
 
 const COL = {
@@ -40,16 +62,28 @@ const fmtFR = (iso) => {
 };
 
 function imgSize(dataUrl) {
-  return new Promise((res) => {
-    const i = new Image();
-    i.onload = () => res({ w: i.naturalWidth || 1, h: i.naturalHeight || 1 });
-    i.onerror = () => res(null);
-    i.src = dataUrl;
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const finish = (error) => {
+      clearTimeout(timer);
+      img.onload = img.onerror = null;
+      if (error) reject(error);
+      else resolve({ w: img.naturalWidth || 1, h: img.naturalHeight || 1 });
+    };
+    const timer = setTimeout(() => {
+      finish(new Error('Une photo ou un croquis ne se charge pas. Le rapport n’a pas été finalisé ; réessayez.'));
+      img.src = '';
+    }, 15000);
+    img.onload = () => finish();
+    img.onerror = () => finish(new Error('Une photo ou un croquis est illisible. Vérifiez les pièces jointes avant de terminer.'));
+    img.src = dataUrl;
   });
 }
 
-export async function generatePdf(payload) {
+export async function generatePdf(payload, { onProgress = () => {} } = {}) {
+  onProgress('Chargement du moteur PDF…');
   const jsPDF = await loadJsPDF();
+  onProgress('Création du rapport PDF…');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const PW = 210, PH = 297, M = 12, CW = PW - M * 2;
   let y = 0;
@@ -288,6 +322,7 @@ export async function generatePdf(payload) {
       // Cadre léger
       doc.setDrawColor(...COL.creme); doc.setFillColor(255, 255, 255);
       doc.rect(x, cy, cellW, cellH, 'S');
+      onProgress(`Photo ${i + 1}/${photos.length}…`);
       const sz = await imgSize(photos[i].dataUrl);
       if (sz) {
         const r = Math.min((cellW - 2) / sz.w, (cellH - 2) / sz.h);
@@ -318,6 +353,7 @@ export async function generatePdf(payload) {
       const cy = y;
       doc.setDrawColor(...COL.creme); doc.setFillColor(255, 255, 255);
       doc.rect(x, cy, cellW, cellH, 'S');
+      onProgress(`Croquis ${i + 1}/${croquis.length}…`);
       const sz = await imgSize(croquis[i].dataUrl);
       if (sz) {
         const r = Math.min((cellW - 2) / sz.w, (cellH - 2) / sz.h);

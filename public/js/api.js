@@ -1,22 +1,34 @@
 // Wrapper minimal pour les appels à /api/*
 export const api = {
   async req(path, options = {}) {
-    const res = await fetch(`/api${path}`, {
-      ...options,
-      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-      credentials: 'same-origin'
-    });
-    if (res.status === 401) {
-      if (location.pathname !== '/' && location.pathname !== '/index.html') {
-        location.href = '/';
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+    try {
+      const res = await fetch(`/api${path}`, {
+        ...options,
+        headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+        credentials: 'same-origin',
+        signal: controller.signal
+      });
+      if (res.status === 401) {
+        if (location.pathname !== '/' && location.pathname !== '/index.html') {
+          location.href = '/';
+        }
+        throw new Error('Non autorisé');
       }
-      throw new Error('Non autorisé');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      return await res.json();
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error('Le serveur ne répond pas après 45 secondes. L’envoi n’est pas confirmé. Votre saisie est conservée sur cet appareil ; vérifiez la connexion puis réessayez.');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
     }
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: res.statusText }));
-      throw new Error(err.error || `HTTP ${res.status}`);
-    }
-    return res.json();
   },
   get(path) { return this.req(path); },
   post(path, body) { return this.req(path, { method: 'POST', body: JSON.stringify(body) }); },

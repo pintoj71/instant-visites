@@ -887,19 +887,32 @@ async function onFinalize() {
     const { attachFails } = await saveRecord();
     if (attachFails) throw new Error(`${attachFails} pièce(s) jointe(s) non envoyée(s). La visite reste en brouillon.`);
     await ensureAttachments();
-    busy(btn, 'PDF…');
-    const doc = await generatePdf(buildPdfPayload());
+    const progress = label => { busy(btn, label); setSaveStatus(label); };
+    const doc = await generatePdf(buildPdfPayload(), { onProgress: progress });
     const fname = pdfFilename(collectData());
     const pdfBase64 = doc.output('datauristring').split(',')[1];
+    progress('Envoi du rapport PDF…');
     await api.post('/upload-pdf', { visiteId: state.id, pdfBase64, filename: fname });
+    progress('Confirmation de la visite…');
     // Dernière écriture seulement après confirmation de tous les envois.
     await api.patch(`/visites/${state.id}`, { fields: { 'Statut': 'Terminée' } });
     markSynced(); finalized = true;
     try { doc.save(fname); } catch { toast('Rapport enregistré en ligne ; téléchargement indisponible.', 'danger'); }
     toast('Visite terminée et rapport enregistré', 'success');
     setTimeout(() => { location.href = '/dashboard.html'; }, 1400);
-  } catch (e) { toast('Clôture non confirmée : ' + e.message, 'danger'); }
-  finally { if (!finalized) endOperation(btn); }
+  } catch (e) {
+    toast('Clôture non confirmée : ' + e.message, 'danger');
+    // Ce message reste visible après la disparition du toast.
+    btn.dataset.finalizeError = 'Clôture non confirmée : ' + e.message;
+  } finally {
+    if (!finalized) {
+      endOperation(btn);
+      if (btn.dataset.finalizeError) {
+        setSaveStatus(btn.dataset.finalizeError);
+        delete btn.dataset.finalizeError;
+      }
+    }
+  }
 }
 
 // ===== Client/Prospect (table dédiée Visites) =====
