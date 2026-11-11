@@ -76,7 +76,11 @@ function renderField(f) {
 
 function renderSection(s, isType) {
   const na = isType ? `<label class="section-na"><input type="checkbox" data-key="na_${s.id}"> Non applicable à ce projet</label>` : '';
-  const body = `<div class="section-body">${na}<div class="grid-2">${s.fields.map(renderField).join('')}</div></div>`;
+  // Bloc conduit (bois / granulés) : passerelle vers l'app Fumisterie, qui chiffre le conduit pièce par pièce
+  const pont = isType && s.id === 'bois'
+    ? `<div class="pont-fumisterie"><button type="button" class="btn ghost full" id="chiffrerConduit">🔥 Chiffrer le conduit dans Fumisterie</button><div class="hint">Ouvre l'app Fumisterie avec le client et les mesures relevées ici : il ne reste qu'à vérifier le dessin pour avoir la liste des pièces et le prix.</div></div>`
+    : '';
+  const body = `<div class="section-body">${na}<div class="grid-2">${s.fields.map(renderField).join('')}</div>${pont}</div>`;
   const tag = isType ? `<span class="section-tag">spécifique</span>` : '';
   return `<details class="section"${s.open || isType ? ' open' : ''}><summary>${s.icon || ''} ${escapeHtml(s.title)} ${tag}</summary>${body}</details>`;
 }
@@ -98,6 +102,36 @@ function renderTypeSections(type) {
   attachVoiceButtons(cont);
   attachInfoButtons(cont);
   wireSplitsInt(); // PAC Air/Air : liste répétable des splits si présente
+  const pont = document.getElementById('chiffrerConduit');
+  if (pont) pont.addEventListener('click', ouvrirFumisterie);
+}
+
+// ===== Passerelle vers Fumisterie (chiffrage du conduit) =====
+// Ce qui a été relevé pendant la visite part dans l'adresse (#visite=…, en base64) : rien n'est envoyé à un serveur.
+const FUMISTERIE_URL = 'https://instant-tarifs.netlify.app/fumisterie';
+const nombre = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
+function donneesPourFumisterie(d) {
+  const type = d.typeProjet || '';
+  const pre = { client: String(d.client || '').trim() };
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(d.dateVisite || '') ? d.dateVisite.split('-').reverse().join('/') : '';
+  pre.ref = date ? `Visite du ${date}` : 'Visite technique';
+  if (type === 'Poêle ou insert granulés') pre.appareil = 'granules';
+  else if (type === 'Poêle ou insert bois') pre.appareil = 'bois';
+  const diam = nombre(d.conduitDiametre);
+  if (diam) pre.diametre = Math.round(diam);
+  const hp = nombre(d.hauteurPlafond);
+  if (hp) pre.hPlafond = hp;
+  if (d.conduitExistant === 'Oui') {
+    pre.situation = 'A'; // une cheminée existe : on la tube
+    const h = nombre(d.conduitHauteur);
+    if (h) pre.lBoisseau = h;
+  }
+  return pre;
+}
+function ouvrirFumisterie() {
+  const pre = donneesPourFumisterie(collectData());
+  const b64 = btoa(unescape(encodeURIComponent(JSON.stringify(pre)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  window.open(`${FUMISTERIE_URL}#visite=${b64}`, '_blank', 'noopener');
 }
 
 // ===== Info-bulles (ⓘ) cliquables =====

@@ -559,3 +559,74 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 #visitReview ul { padding-left:20px; }
 .save-status { max-width:45%; white-space:normal; text-align:right; font-size:12px; }
 [hidden] { display:none !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THÈME PORTAIL INSTANT (nov. 2026) — même habillage que le portail, Tarifs et Fumisterie :
+   fond crème, cartes blanches arrondies, bordeaux pour l'action, or pour l'accent,
+   polices Outfit (texte) et DM Serif Display (titres). Les règles ci-dessous passent
+   après tout le reste ; pour revenir à l'ancien habillage, il suffit de supprimer ce bloc.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg: #FAF6F1;
+  --surface: #ffffff;
+  --primary: #1A1210;      /* charbon : titres, boutons sombres */
+  --primary-2: #7A2838;    /* bordeaux */
+  --accent: #7A2838;       /* l'action principale est bordeaux */
+  --accent-2: #944050;
+  --or: #B8953E;
+  --border: #e6ddd3;
+  --text: #1A1210;
+  --muted: #8a7f78;
+  --radius: 16px;
+  --shadow: 0 1px 0 #e6ddd3, 0 6px 16px rgba(26,18,16,.07);
+}
+body { font-family: 'Outfit', system-ui, -apple-system, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font-family: inherit; }
+h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 24px; line-height: 1.1; color: var(--primary-2); }
+h2 { font-size: 16px; font-weight: 600; color: var(--primary); }
+
+/* en-tête clair, posé sur le fond */
+.app-header { background: rgba(250,246,241,.94); color: var(--text); box-shadow: none; border-bottom: 1px solid var(--border); padding: 10px 14px; gap: 10px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.app-header .logo { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 19px; letter-spacing: 0; color: var(--primary-2); }
+.app-header .user { color: var(--muted); font-size: 13px; opacity: 1; }
+.app-header button, .portail-lien { background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 500; min-height: 38px; }
+.app-header button:hover { background: #F3EDE4; }
+.portail-lien { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+.portail-lien[hidden] { display: none; }
+.save-status { color: var(--muted); }
+
+/* cartes, boutons, champs */
+.card { border-radius: 20px; border: 0; box-shadow: var(--shadow); }
+button.btn, .btn { border-radius: 14px; min-height: 46px; padding: 12px 18px; font-size: 15px; text-decoration: none; }
+button.btn.dark { background: var(--accent); box-shadow: 0 8px 20px rgba(122,40,56,.24); }
+button.btn.dark:hover { background: var(--accent-2); }
+button.btn.ghost { border-radius: 14px; }
+button.btn.small { min-height: 34px; border-radius: 10px; }
+input[type="text"], input[type="tel"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], input[type="search"], textarea, select { border-radius: 12px; font-size: 16px; }
+input:focus, textarea:focus, select:focus { border-color: var(--or); box-shadow: 0 0 0 3px rgba(184,149,62,.22); outline: none; }
+label { letter-spacing: .04em; }
+.tabs { border-radius: 14px; background: rgba(26,18,16,.06); border: 0; padding: 3px; }
+.tabs button { border-radius: 11px; font-weight: 600; min-height: 38px; }
+.tabs button.active { background: var(--primary); color: #FAF6F1; }
+.visite-item { border-radius: 16px; border-left-color: var(--or); }
+.badge { border-radius: 999px; }
+details.section { border-radius: 16px; background: #fff; }
+.visit-step.is-active { background: #F3EDE4; border-radius: 12px; }
+.ctx .pill, .section-tag { background: var(--or); color: var(--primary); }
+.toast { border-radius: 999px; }
+.info-box { border-radius: 12px; }
+
+/* connexion : la même boîte que le portail */
+.login-page { background: var(--bg); }
+.login-card { border-radius: 22px; padding: 26px 22px 22px; max-width: 360px; box-shadow: var(--shadow); text-align: left; }
+.login-logo { margin-bottom: 18px; }
+.login-logo .mark { display: grid; place-items: center; width: 150px; height: 96px; margin: 0 auto 8px; border-radius: 22px; background: #efe6cf; font-size: 40px; }
+.login-logo h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 30px; line-height: 1.05; color: var(--primary-2); margin: 6px 0 0; }
+.login-logo h1::after { content: ""; display: block; width: 34px; height: 2px; background: var(--or); border-radius: 2px; margin: 10px auto 0; }
+.login-logo p { font-size: 14px; color: var(--muted); margin-top: 10px; }
+.login-portail { display: block; text-align: center; margin-top: 14px; font-size: 14px; font-weight: 500; color: var(--primary-2); text-decoration: none; }
+.error-msg.info { color: var(--muted); }
+
+/* passerelle vers Fumisterie, dans le bloc conduit */
+.pont-fumisterie { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.pont-fumisterie .btn { border-color: var(--or); color: var(--primary-2); font-weight: 600; }
