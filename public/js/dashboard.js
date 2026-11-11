@@ -3,6 +3,8 @@ import { api, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
 // Auth + nom
 api.get('/me').then(u => {
   document.getElementById('userName').textContent = u.name;
+  // entré par le portail Instant : le retour au portail est proposé dans l'en-tête
+  if (u.portail) document.getElementById('versPortail').hidden = false;
 }).catch(() => location.href = '/');
 
 const listEl = document.getElementById('list');

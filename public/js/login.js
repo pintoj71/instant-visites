@@ -1,7 +1,23 @@
 import { api, escapeHtml } from '/js/api.js';
 
-// Déjà connecté ? -> dashboard
-api.get('/me').then(() => location.href = '/dashboard.html').catch(() => {});
+// Arrivée depuis le portail Instant : l'adresse porte #ticket=… (60 s, une seule fois).
+// On l'échange contre une session, puis on ouvre le tableau de bord comme après un PIN.
+const ticket = (location.hash.match(/ticket=([0-9a-f]{48})/) || [])[1];
+if (ticket) {
+  history.replaceState(null, '', location.pathname + location.search);
+  const msg = document.getElementById('error');
+  if (msg) { msg.classList.add('info'); msg.textContent = 'Ouverture depuis le portail…'; }
+  api.post('/portail', { ticket }).then((res) => {
+    localStorage.setItem('userName', res.name || '');
+    localStorage.setItem('viaPortail', '1');
+    location.href = '/dashboard.html';
+  }).catch((err) => {
+    if (msg) { msg.classList.remove('info'); msg.textContent = err.message === 'Non autorisé' ? 'Lien expiré. Repasse par le portail.' : (err.message || 'Entrée par le portail impossible'); }
+  });
+} else {
+  // Déjà connecté ? -> dashboard
+  api.get('/me').then(() => location.href = '/dashboard.html').catch(() => {});
+}
 
 const form = document.getElementById('loginForm');
 const errorEl = document.getElementById('error');
@@ -42,6 +58,7 @@ form.addEventListener('submit', async (e) => {
   try {
     const res = await api.post('/login', { pin, name });
     localStorage.setItem('userName', res.name || name);
+    localStorage.removeItem('viaPortail');
     location.href = '/dashboard.html';
   } catch (err) {
     errorEl.textContent = err.message || 'Erreur de connexion';
