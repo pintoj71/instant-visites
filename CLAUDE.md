@@ -75,6 +75,27 @@ Réf. client (Abonnements).
   serveur** (`techniciens.js` ne renvoie que les noms). Le hash protège surtout contre la lecture
   directe du PIN dans l'UI Airtable.
 
+## Portail Instant (depuis v1.9.0)
+
+L'app est une case du portail de l'équipe (`https://app.instantbypinto.fr`, module `visites`).
+
+- Le portail ouvre l'app avec `#ticket=…` (60 s, une seule fois). `public/js/login.js` l'envoie à
+  `POST /api/portail` (`netlify/functions/portail.js`), qui l'échange dans Supabase (`portail_echanger`)
+  contre le prénom de la personne, retrouve son technicien dans la table `Techniciens` (par prénom,
+  sans accent : « Mickael » → « Mickael PINTO ») et pose le **même cookie de session** que le PIN.
+- À chaque ouverture d'écran, `/api/me` redemande au portail si l'accès tient toujours
+  (`portail_verifier`). Une personne décochée dans « Accès de l'équipe » est sortie à l'écran suivant.
+  Si le portail ne répond pas, la session en cours continue (12 h au plus).
+- Variable Netlify **`PORTAIL_MODULE_CLE`** = valeur de `secret_visites` dans `cat_config` (Supabase,
+  projet « Instant by Pinto »). Sans elle, `/api/portail` répond 503 et l'app marche au PIN seul.
+- Le PIN reste en secours. Lien « ← Portail » dans l'en-tête quand on est entré par le portail.
+- **Habillage** : le bloc « THÈME PORTAIL INSTANT » à la fin de `css/style.css` (fond crème, bordeaux,
+  or, polices Outfit et DM Serif Display via Google Fonts, autorisées dans la CSP). Le supprimer
+  rend l'ancien habillage. Le PDF n'est pas concerné.
+- **Passerelle Fumisterie** : dans le bloc conduit (bois / granulés), « Chiffrer le conduit dans
+  Fumisterie » ouvre `instant-tarifs.netlify.app/fumisterie#visite=<base64>` avec le client, la
+  référence, l'appareil, le diamètre et la cheminée existante (`donneesPourFumisterie` dans `visite.js`).
+
 ## Structure des fichiers
 
 ```
@@ -133,7 +154,8 @@ qui doivent rester **stables**). Le PDF lit les mêmes définitions.
 ## Variables d'environnement (Netlify + .env local)
 
 `AIRTABLE_API_KEY`, `AIRTABLE_BASE_ID` (=`appiH3g9J0B9tdbIE`),
-`AIRTABLE_CLIENTS_BASE_ID` (=`appCSUjH1ht16bL97`, optionnel), `APP_PIN`, `APP_SECRET`.
+`AIRTABLE_CLIENTS_BASE_ID` (=`appCSUjH1ht16bL97`, optionnel), `APP_PIN`, `APP_SECRET`,
+`PORTAIL_MODULE_CLE` (entrée par le portail Instant, voir plus haut).
 
 ## Pour Claude Code dans ce repo
 
@@ -147,3 +169,5 @@ qui doivent rester **stables**). Le PDF lit les mêmes définitions.
 - **v1.0.0** (2026-05) — Version initiale : auth multi-technicien (Blobs rate-limit, PIN hashé),
   dashboard, formulaire dynamique pour les 9 types, photos compressées + GPS + dictée vocale,
   rapport PDF IBP, PWA. Base Airtable dédiée créée.
+- **v1.9.0** (2026-11) — Entrée par le portail Instant (module `visites`), habillage du portail,
+  passerelle « Chiffrer le conduit dans Fumisterie ».
