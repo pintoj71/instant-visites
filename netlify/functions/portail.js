@@ -30,6 +30,27 @@ export function technicienDuPrenom(noms, prenom) {
   return parPrenom.length === 1 ? parPrenom[0] : null;
 }
 
+// Session ouverte depuis le portail : à chaque ouverture d'écran (/api/me), on redemande au portail
+// si la personne est toujours active et si sa case est toujours cochée.
+// → true (toujours autorisée), false (accès retiré ou session portail finie), null (le portail ne répond pas).
+export async function portailToujoursOk(user, env = process.env) {
+  if (!user || user.via !== 'portail') return true;
+  if (!portailActif(env) || !/^[0-9a-f]{64}$/.test(String(user.jeton || ''))) return false;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/portail_verifier`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_PUBLIC, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_cle: env.PORTAIL_MODULE_CLE.trim(), p_module: MODULE, p_jeton: user.jeton }),
+      signal: AbortSignal.timeout(6000)
+    });
+    const d = await res.json().catch(() => null);
+    if (!res.ok || !d || typeof d !== 'object') return null;
+    return d.ok === true;
+  } catch {
+    return null;
+  }
+}
+
 export const handler = async (event) => {
   if (event.httpMethod !== 'POST') return badRequest('POST only');
   if (!portailActif()) return json(503, { error: 'L’entrée par le portail n’est pas encore activée sur cette app.' });
@@ -53,7 +74,7 @@ export const handler = async (event) => {
     console.error('portail', err.message);
     return json(503, { error: 'La vérification du portail ne répond pas. Réessaie dans 1 minute.' });
   }
-  if (!(d.ok === true && typeof d.prenom === 'string' && d.prenom.trim())) {
+  if (!(d.ok === true && typeof d.prenom === 'string' && d.prenom.trim() && /^[0-9a-f]{64}$/.test(String(d.jeton || '')))) {
     return json(401, { error: d.erreur || 'Lien expiré. Repasse par le portail.' });
   }
 
@@ -67,6 +88,6 @@ export const handler = async (event) => {
     console.error('portail techniciens', err.message); // Airtable en panne : on entre quand même avec le prénom
   }
 
-  const token = signToken({ sub: displayName, role: 'tech', via: 'portail' });
+  const token = signToken({ sub: displayName, role: 'tech', via: 'portail', jeton: d.jeton });
   return json(200, { ok: true, name: displayName, portail: true }, { 'Set-Cookie': authCookie(token) });
 };
