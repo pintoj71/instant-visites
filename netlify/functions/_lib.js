@@ -3,9 +3,9 @@ import crypto from 'node:crypto';
 
 // ---- Bases ----
 // Base DEDIEE des visites techniques (lecture/écriture)
-const AIRTABLE_BASE = process.env.AIRTABLE_BASE_ID || 'appiH3g9J0B9tdbIE';
+const AIRTABLE_BASE = 'apphIHLcOwv3ZhsFI';
 // Base maintenance "Abonnements Entretien & Ramonage" (lecture seule, recherche client)
-const AIRTABLE_CLIENTS_BASE = process.env.AIRTABLE_CLIENTS_BASE_ID || 'appCSUjH1ht16bL97';
+const AIRTABLE_CLIENTS_BASE = 'disabled';
 const AIRTABLE_KEY = process.env.AIRTABLE_API_KEY;
 
 const APP_PIN = process.env.APP_PIN || '';
@@ -16,10 +16,10 @@ export const BASES = { VISITES: AIRTABLE_BASE, CLIENTS: AIRTABLE_CLIENTS_BASE };
 
 // ---- IDs Airtable (centralisés) ----
 export const TABLES = {
-  VISITES: process.env.AIRTABLE_VISITES_TABLE_ID || 'tbl00bDbH7524lOq1',
-  TECHNICIENS: process.env.AIRTABLE_TECHNICIENS_TABLE_ID || 'tblYH9sqJeyHv1eLU',
+  VISITES: 'tblAS5bK3T6YZLzmw',
+  TECHNICIENS: 'tblk0p1AUAKbQj0TS',
   // Table Clients/Prospects de l'activité visites (lecture/écriture, base visites)
-  PROSPECTS: process.env.AIRTABLE_PROSPECTS_TABLE_ID || 'tblDSSWq1wY3oi4qJ',
+  PROSPECTS: 'tblNbPNQ1VX4l9D55',
   // Table Clients de la base maintenance (lecture seule, base distincte)
   CLIENTS: 'tblT10SJD6ilGsJK3'
 };
@@ -39,16 +39,16 @@ export const FIELDS = {
     estimation: 'fldmMVXwvpYeGFUxi',
     delai: 'fldXqM6UxKykZKSmg',
     reponsesJson: 'fldKnUO2IrJI52EsB',
-    photos: process.env.AIRTABLE_PHOTOS_FIELD_ID || 'fldqWIfobjKae4lzi',
+    photos: 'fldiAyJQdSOd0cKN6',
     sigTechnicien: 'fldN9UyEUCOJ8X1vx',
     sigClient: 'fld66rHAOmgLSCwfd',
-    pdfRapport: process.env.AIRTABLE_PDF_FIELD_ID || 'fldEPZMGLyNxOsiV5',
+    pdfRapport: 'fld94rhuvTg1ExF2J',
     refClient: 'fld1FnY6sYYNe7aRi',
     statutChantier: 'fldEG4lMbs69sGtd0',
     datePosePrevue: 'fld8xQMqmOqNJlUia',
     equipePose: 'fldwls6jYG1RBJFIr',
     clientProspect: 'fldh9UPAsWFjoM4vS',
-    croquis: process.env.AIRTABLE_CROQUIS_FIELD_ID || 'flduv9rpCC8jc2NmU'
+    croquis: 'fldrDdxbuwwYKNgTa'
   },
   technicien: {
     nom: 'fldhuYbKaGZdZ5QFo',
