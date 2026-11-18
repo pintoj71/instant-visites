@@ -1,3 +1,20 @@
+const OFFLINE_IDENTITY = 'visite:offline-identity';
+
+function rememberOfflineIdentity(user) {
+  try {
+    if (user.portailIndisponible) return;
+    if (typeof user.name === 'string' && user.name && user.expiresAt > Date.now()) {
+      localStorage.setItem(OFFLINE_IDENTITY, JSON.stringify({ name: user.name, expiresAt: user.expiresAt }));
+    } else {
+      localStorage.removeItem(OFFLINE_IDENTITY);
+    }
+  } catch {}
+}
+
+export function forgetOfflineIdentity() {
+  try { localStorage.removeItem(OFFLINE_IDENTITY); } catch {}
+}
+
 // Wrapper minimal pour les appels à /api/*
 export const api = {
   async req(path, options = {}) {
@@ -11,16 +28,20 @@ export const api = {
         signal: controller.signal
       });
       if (res.status === 401) {
+        forgetOfflineIdentity();
         if (location.pathname !== '/' && location.pathname !== '/index.html') {
           location.href = '/';
         }
-        throw new Error('Non autorisé');
+        throw Object.assign(new Error('Non autorisé'), { status: 401 });
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(err.error || `HTTP ${res.status}`);
+        throw Object.assign(new Error(err.error || `HTTP ${res.status}`), { status: res.status, code: err.code });
       }
-      return await res.json();
+      const data = await res.json();
+      if (path === '/me') rememberOfflineIdentity(data);
+      if (path === '/login' || path === '/portail') forgetOfflineIdentity();
+      return data;
     } catch (error) {
       if (controller.signal.aborted) {
         throw new Error('Le serveur ne répond pas après 45 secondes. L’envoi n’est pas confirmé. Votre saisie est conservée sur cet appareil ; vérifiez la connexion puis réessayez.');
@@ -29,6 +50,13 @@ export const api = {
     } finally {
       clearTimeout(timeout);
     }
+  },
+  offlineIdentity() {
+    try {
+      const profile = JSON.parse(localStorage.getItem(OFFLINE_IDENTITY) || 'null');
+      if (profile?.name && profile.expiresAt > Date.now()) return profile;
+    } catch {}
+    return null;
   },
   get(path) { return this.req(path); },
   post(path, body) { return this.req(path, { method: 'POST', body: JSON.stringify(body) }); },

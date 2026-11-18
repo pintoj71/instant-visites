@@ -32,3 +32,44 @@ test('Portail : inactif sans la variable PORTAIL_MODULE_CLE, refus des tickets m
   assert.equal(get.statusCode, 400);
   delete process.env.PORTAIL_MODULE_CLE;
 });
+
+test('Écritures : panne bloquante, révocation bloquante et reprise après validation', async (t) => {
+  const { signToken } = await import('../netlify/functions/_lib.js');
+  const { handler: me } = await import('../netlify/functions/me.js');
+  const { handler: visits } = await import('../netlify/functions/visites.js');
+  const { handler: uploadPdf } = await import('../netlify/functions/upload-pdf.js');
+  const { verifierAcces } = await import('../netlify/functions/portail.js');
+  const oldKey = process.env.PORTAIL_MODULE_CLE;
+  process.env.PORTAIL_MODULE_CLE = 'a'.repeat(48);
+  t.after(() => {
+    if (oldKey === undefined) delete process.env.PORTAIL_MODULE_CLE;
+    else process.env.PORTAIL_MODULE_CLE = oldKey;
+  });
+
+  const event = {
+    httpMethod: 'POST', path: '/api/visites', body: '{}',
+    headers: { cookie: 'session=' + signToken({ sub: 'Test', via: 'portail', jeton: 'b'.repeat(64) }) }
+  };
+  const read = { ...event, httpMethod: 'GET', path: '/api/me' };
+  const mock = t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 503 }));
+  assert.equal(JSON.parse((await me(read)).body).portailIndisponible, true);
+  for (const handler of [visits, uploadPdf]) {
+    const response = await handler(event);
+    assert.equal(response.statusCode, 503);
+    assert.equal(JSON.parse(response.body).code, 'PORTAIL_INDISPONIBLE');
+  }
+
+  mock.mock.mockImplementation(async () => new Response('{"ok":false}'));
+  assert.equal((await visits(event)).statusCode, 401);
+  assert.equal((await me(read)).statusCode, 401);
+
+  mock.mock.mockImplementation(async () => new Response('{"ok":true}'));
+  assert.equal(JSON.parse((await me(read)).body).portailIndisponible, false);
+  assert.equal((await visits(event)).statusCode, 400); // atteint la validation métier
+
+  mock.mock.mockImplementation(async () => { throw new Error('Le PIN ne contacte pas le portail'); });
+  const calls = mock.mock.callCount();
+  const pin = { ...event, headers: { cookie: 'session=' + signToken({ sub: 'Test' }) } };
+  assert.equal((await verifierAcces(pin)).user.sub, 'Test');
+  assert.equal(mock.mock.callCount(), calls);
+});

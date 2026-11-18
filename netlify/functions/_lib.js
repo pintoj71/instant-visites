@@ -16,10 +16,10 @@ export const BASES = { VISITES: AIRTABLE_BASE, CLIENTS: AIRTABLE_CLIENTS_BASE };
 
 // ---- IDs Airtable (centralisés) ----
 export const TABLES = {
-  VISITES: 'tbl00bDbH7524lOq1',
-  TECHNICIENS: 'tblYH9sqJeyHv1eLU',
+  VISITES: process.env.AIRTABLE_VISITES_TABLE_ID || 'tbl00bDbH7524lOq1',
+  TECHNICIENS: process.env.AIRTABLE_TECHNICIENS_TABLE_ID || 'tblYH9sqJeyHv1eLU',
   // Table Clients/Prospects de l'activité visites (lecture/écriture, base visites)
-  PROSPECTS: 'tblDSSWq1wY3oi4qJ',
+  PROSPECTS: process.env.AIRTABLE_PROSPECTS_TABLE_ID || 'tblDSSWq1wY3oi4qJ',
   // Table Clients de la base maintenance (lecture seule, base distincte)
   CLIENTS: 'tblT10SJD6ilGsJK3'
 };
@@ -39,16 +39,16 @@ export const FIELDS = {
     estimation: 'fldmMVXwvpYeGFUxi',
     delai: 'fldXqM6UxKykZKSmg',
     reponsesJson: 'fldKnUO2IrJI52EsB',
-    photos: 'fldqWIfobjKae4lzi',
+    photos: process.env.AIRTABLE_PHOTOS_FIELD_ID || 'fldqWIfobjKae4lzi',
     sigTechnicien: 'fldN9UyEUCOJ8X1vx',
     sigClient: 'fld66rHAOmgLSCwfd',
-    pdfRapport: 'fldEPZMGLyNxOsiV5',
+    pdfRapport: process.env.AIRTABLE_PDF_FIELD_ID || 'fldEPZMGLyNxOsiV5',
     refClient: 'fld1FnY6sYYNe7aRi',
     statutChantier: 'fldEG4lMbs69sGtd0',
     datePosePrevue: 'fld8xQMqmOqNJlUia',
     equipePose: 'fldwls6jYG1RBJFIr',
     clientProspect: 'fldh9UPAsWFjoM4vS',
-    croquis: 'flduv9rpCC8jc2NmU'
+    croquis: process.env.AIRTABLE_CROQUIS_FIELD_ID || 'flduv9rpCC8jc2NmU'
   },
   technicien: {
     nom: 'fldhuYbKaGZdZ5QFo',

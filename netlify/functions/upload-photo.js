@@ -2,11 +2,13 @@
 // Ajoute une photo (JPEG compressé, base64) en pièce jointe sur la visite.
 // L'API uploadAttachment ajoute la pièce jointe sans écraser les précédentes,
 // on l'appelle donc une fois par photo. Le libellé est porté par le nom de fichier.
-import { requireAuth, airtable, TABLES, FIELDS, isValidRecordId, uploadAttachment, json, unauthorized, badRequest, serverError } from './_lib.js';
+import { airtable, TABLES, FIELDS, isValidRecordId, uploadAttachment, json, badRequest, serverError } from './_lib.js';
+
+import { verifierAcces } from './portail.js';
 
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
   if (event.httpMethod !== 'POST') return badRequest('POST only');
 
   let body;

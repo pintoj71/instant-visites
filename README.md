@@ -5,7 +5,7 @@ d'un appareil de chauffage et générer un **rapport PDF** à remettre au client
 
 - Sans build step (HTML/CSS/JS pur, ES modules) — éditable depuis iPhone / Surface / github.dev.
 - Frontend statique → Netlify Functions → Airtable. PDF généré côté client (jsPDF).
-- PWA installable + hors-ligne.
+- PWA installable avec reprise des brouillons locaux hors ligne.
 
 Voir [`CLAUDE.md`](CLAUDE.md) pour l'architecture détaillée, le data model et les pièges connus.
 
@@ -71,6 +71,16 @@ Ouvrir `/icons/generate.html`, télécharger `icon-192.png` et `icon-512.png`, l
 4. **Brouillon** pour reprendre plus tard, ou **Valider** pour générer/archiver le PDF.
 
 Sauvegarde locale automatique : une visite interrompue se restaure au rechargement.
+
+### En cas de coupure
+
+Sur un appareil déjà connecté, le tableau de bord permet de retrouver les brouillons de la
+dernière session vérifiée jusqu’à son expiration. Si le portail est indisponible, la saisie est
+conservée sur l’appareil et les écritures en ligne attendent la vérification des droits.
+
+Au retour de la connexion, ouvrez de nouveau une visite existante avant de l’envoyer. L’application
+peut ainsi vérifier si la fiche a changé en ligne pendant la coupure. Un brouillon local ne remplace
+pas une sauvegarde dans Airtable.
 
 ## Vérifier les régressions
 

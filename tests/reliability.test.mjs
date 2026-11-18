@@ -13,7 +13,7 @@ const validData = { client: 'Client test', adresse: 'Adresse test', typeProjet: 
 function storedRecord(data = validData) {
   return { id: recordId, fields: { Client: data.client, 'Réponses (JSON)': JSON.stringify({ answers: data }), 'Statut': 'Brouillon', 'Signature client': 'client', 'Signature technicien': 'tech', 'Photos': [], 'Croquis': [] } };
 }
-async function setup({ record = storedRecord(), draft, user = 'Test', newVisit = false, failUpload = false, failPdf = false, missingAttachments = false, failGet = false } = {}) {
+async function setup({ record = storedRecord(), draft, user = 'Test', newVisit = false, failUpload = false, failPdf = false, missingAttachments = false, failGet = false, meError, offlineName, portalDown = false } = {}) {
   const dom = new JSDOM(html, { url: `https://example.test/visite.html${newVisit ? '' : '?id=' + recordId}`, runScripts: 'outside-only' });
   const w = dom.window, calls = [], messages = [], pads = [];
   w.scrollTo = () => {};
@@ -34,9 +34,13 @@ async function setup({ record = storedRecord(), draft, user = 'Test', newVisit =
   };
   const clone = x => JSON.parse(JSON.stringify(x));
   w.api = {
+    offlineIdentity: () => offlineName ? { name: offlineName } : null,
     get: async path => {
       calls.push(['get', path]);
-      if (path === '/me') return { name: user };
+      if (path === '/me') {
+        if (meError) throw meError;
+        return { name: user, portailIndisponible: portalDown };
+      }
       if (path.startsWith('/visite-attachments')) return { photos: missingAttachments ? [] : record.fields.Photos.map(a => ({ ...a, dataUrl: 'data:image/jpeg;base64,eA==' })), croquis: [] };
       if (failGet) throw new Error('Déconnexion simulée');
       return { visite: clone(record) };
@@ -66,7 +70,7 @@ test('Réouverture : données locales, signature effacée et pièces jointes non
     assert.equal(x.w.document.querySelector('[data-key="client"]').value, 'Modification locale');
     assert.equal(x.pads[0].isEmpty(), true);
     assert.equal(x.app.state.newPhotos.length, 1);
-    assert.match(x.w.document.getElementById('saveStatus').textContent, /Sur cet appareil/);
+    assert.match(x.w.document.getElementById('saveStatus').textContent, /Brouillon enregistré sur ce téléphone/);
     assert.equal(x.w.document.querySelector('[data-key="client"]').closest('[data-visit-panel]').dataset.visitPanel, 'projet');
   } finally { x.close(); }
 });
@@ -205,7 +209,7 @@ test('Liste serveur : transmet le curseur Airtable et renvoie celui de la page s
   const { default: vm } = await import('node:vm');
   const text = await readFile(new URL('../netlify/functions/visites.js', import.meta.url), 'utf8');
   let requested;
-  const context = vm.createContext({ URLSearchParams, console, TABLES: { VISITES: 'visits' }, requireAuth: () => ({ name: 'Test' }), escapeFormula: x => x, airtable: async path => { requested = path; return { records: [{ id: 'record101' }], offset: 'next-page' }; }, json: (status, body) => ({ status, body }), badRequest: x => x, serverError: e => { throw e; } });
+  const context = vm.createContext({ URLSearchParams, console, TABLES: { VISITES: 'visits' }, verifierAcces: async () => ({ user: { sub: 'Test' } }), escapeFormula: x => x, airtable: async path => { requested = path; return { records: [{ id: 'record101' }], offset: 'next-page' }; }, json: (status, body) => ({ status, body }), badRequest: x => x, serverError: e => { throw e; } });
   vm.runInContext(text.replace(/^import[\s\S]*?from '[^']+';\n/gm, '').replace('export const handler', 'const handler') + '\nthis.run = handler;', context);
   const result = await context.run({ httpMethod: 'GET', path: '/api/visites', queryStringParameters: { when: 'all', offset: 'page-2' } });
   assert.equal(new URL('https://test' + requested).searchParams.get('offset'), 'page-2');
@@ -232,4 +236,37 @@ test('Tableau de bord : charge les visites au-delà des 100 premières', async (
     assert.match(requests.at(-1), /offset=page2/);
     assert.equal(w.document.getElementById('loadMore').hidden, true);
   } finally { w.close(); }
+});
+
+test('Coupure complète : reprise locale et aucun PATCH sur la visite non rechargée', async () => {
+  const x = await setup({ meError: new Error('Hors ligne'), offlineName: 'Test', draft: { data: validData, baseAnswers: 'version précédente' } });
+  try {
+    assert.equal(x.w.document.querySelector('[data-key="client"]').value, validData.client);
+    await x.app.onDraft();
+    assert.equal(x.app.readLocalDraft().baseAnswers, 'version précédente');
+    assert.equal(x.calls.some(c => c[0] === 'patch'), false);
+  } finally { x.close(); }
+});
+
+test('Accès retiré : un profil local ne permet pas de rouvrir le brouillon', async () => {
+  const x = await setup({ meError: Object.assign(new Error('Accès retiré'), { status: 401 }), offlineName: 'Test', draft: { data: validData } });
+  try {
+    assert.equal(x.w.document.querySelector('main').inert, true);
+    assert.equal(x.w.document.querySelector('[data-key="client"]'), null);
+  } finally { x.close(); }
+});
+
+test('Panne du portail : l’envoi attend une vérification positive et conserve la saisie', async () => {
+  const x = await setup({ portalDown: true, draft: { data: validData } });
+  try {
+    await x.app.onDraft();
+    assert.ok(x.app.readLocalDraft());
+    assert.equal(x.calls.some(c => c[0] === 'patch'), false);
+
+    const get = x.w.api.get;
+    x.w.api.get = path => path === '/me' ? Promise.resolve({ name: 'Test' }) : get(path);
+    await x.app.onDraft();
+    assert.ok(x.calls.some(c => c[0] === 'patch'));
+    assert.equal(x.app.readLocalDraft(), null);
+  } finally { x.close(); }
 });

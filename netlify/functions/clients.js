@@ -1,10 +1,13 @@
 // GET /api/clients?q=durand  -> recherche client dans la base maintenance (lecture seule)
 // Sert à pré-remplir une visite à partir d'un client déjà connu.
-import { requireAuth, airtable, TABLES, BASES, escapeFormula, json, unauthorized, serverError } from './_lib.js';
+import { airtable, TABLES, BASES, escapeFormula, json, serverError } from './_lib.js';
+
+import { verifierAcces } from './portail.js';
 
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
+  if (BASES.CLIENTS === 'disabled') return json(200, { records: [] });
 
   const q = (event.queryStringParameters?.q || '').trim();
   if (q.length < 2) return json(200, { records: [] });

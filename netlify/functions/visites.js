@@ -3,13 +3,15 @@
 // POST  /api/visites              -> création  body: { fields }
 // PATCH /api/visites/:id          -> mise à jour body: { fields }
 import {
-  requireAuth, airtable, TABLES, VISITE_WRITABLE, pickWritable, isValidRecordId,
-  escapeFormula, json, unauthorized, badRequest, serverError
+  airtable, TABLES, VISITE_WRITABLE, pickWritable, isValidRecordId,
+  escapeFormula, json, badRequest, serverError
 } from './_lib.js';
 
+import { verifierAcces } from './portail.js';
+
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
 
   const rest = event.path.replace(/^.*\/visites/, '');
   const id = rest.replace(/^\//, '').split('?')[0];

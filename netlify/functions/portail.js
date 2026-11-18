@@ -6,7 +6,7 @@
 // Actif seulement si la variable Netlify PORTAIL_MODULE_CLE est réglée (>= 32 caractères).
 // Sans elle, l'app fonctionne exactement comme avant (PIN seul).
 import {
-  airtable, TABLES, signToken, authCookie, json, badRequest
+  airtable, TABLES, signToken, authCookie, clearCookie, requireAuth, unauthorized, json, badRequest
 } from './_lib.js';
 
 const MODULE = 'visites';
@@ -44,11 +44,27 @@ export async function portailToujoursOk(user, env = process.env) {
       signal: AbortSignal.timeout(6000)
     });
     const d = await res.json().catch(() => null);
-    if (!res.ok || !d || typeof d !== 'object') return null;
-    return d.ok === true;
+    if (!res.ok || typeof d?.ok !== 'boolean') return null;
+    return d.ok;
   } catch {
     return null;
   }
+}
+
+// Pendant une panne du portail, la session permet de lire et de conserver
+// le travail en local. Toute écriture exige une vérification positive.
+export async function verifierAcces(event) {
+  const user = requireAuth(event);
+  if (!user) return { refus: unauthorized() };
+
+  const autorise = await portailToujoursOk(user);
+  if (autorise === false) {
+    return { refus: json(401, { error: 'Votre accès a changé. Repassez par le portail Instant.' }, { 'Set-Cookie': clearCookie() }) };
+  }
+  if (autorise === null && event.httpMethod !== 'GET') {
+    return { refus: json(503, { code: 'PORTAIL_INDISPONIBLE', error: 'Le portail ne répond pas. Réessayez lorsque la connexion revient.' }) };
+  }
+  return { user, portailIndisponible: autorise === null };
 }
 
 export const handler = async (event) => {

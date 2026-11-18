@@ -1,10 +1,12 @@
 // POST /api/delete-attachment  body: { visiteId, attId, field }
 // Supprime une pièce jointe (Photos ou Croquis) d'une visite.
-import { requireAuth, airtable, TABLES, BASES, isValidRecordId, unauthorized, badRequest, json, serverError } from './_lib.js';
+import { airtable, TABLES, BASES, isValidRecordId, badRequest, json, serverError } from './_lib.js';
+
+import { verifierAcces } from './portail.js';
 
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
   if (event.httpMethod !== 'POST') return badRequest('POST only');
   let body;
   try { body = JSON.parse(event.body || '{}'); } catch { return badRequest('Invalid JSON'); }
