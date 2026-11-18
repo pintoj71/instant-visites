@@ -31,13 +31,30 @@ let ready = false, dirty = false, operation = false, finalized = false;
 let attachmentsReady = Promise.resolve();
 let baseAnswers = null;
 let loadFailed = false;
+let offlineResume = false;
+let portailIndisponible = false;
+const LOCAL_PENDING = 'Brouillon enregistré sur ce téléphone · envoi en attente';
 let pendingMedia = 0;
 const draftKey = () => `visite:${encodeURIComponent(state.userName)}:${state.id || 'new'}`;
 
 // ===== Auth =====
 const meReady = api.get('/me')
-  .then(u => { state.userName = u.name; storageKey = draftKey(); return true; })
-  .catch(() => { toast('Connexion nécessaire pour ouvrir la visite. Réessayez lorsque le réseau revient.', 'danger'); return false; });
+  .catch(error => {
+    if (error.status && error.status < 500) return null;
+    const profile = api.offlineIdentity?.();
+    offlineResume = Boolean(profile);
+    return profile;
+  })
+  .then(user => {
+    if (!user) {
+      toast('Connexion nécessaire pour ouvrir la visite. Réessayez lorsque le réseau revient.', 'danger');
+      return false;
+    }
+    state.userName = user.name;
+    storageKey = draftKey();
+    portailIndisponible = Boolean(user.portailIndisponible);
+    return true;
+  });
 
 // ===== Rendu des champs =====
 function renderField(f) {
@@ -580,7 +597,7 @@ function persist() {
   if (!ready || finalized) return false;
   try {
     localStorage.setItem(storageKey, JSON.stringify({ ...snapshot(), owner: state.userName, dirty, baseAnswers, savedAt: Date.now() }));
-    if (dirty) setSaveStatus('Sur cet appareil · à envoyer');
+    if (dirty) setSaveStatus(LOCAL_PENDING);
     return true;
   } catch {
     setSaveStatus('Non sauvegardé · espace insuffisant');
@@ -827,6 +844,13 @@ async function saveRecord() {
   if (loadFailed) throw new Error('Rechargez la visite avec une connexion avant de l’envoyer. Vos modifications restent sur cet appareil.');
   prepareFilenames();
   persist();
+  if (offlineResume || portailIndisponible) {
+    const user = await api.get('/me');
+    if (user.name !== state.userName) throw new Error('Reconnectez-vous avec le compte qui a créé ce brouillon.');
+    if (user.portailIndisponible) throw new Error('Le portail ne répond pas. Réessayez lorsque la connexion revient.');
+    offlineResume = false;
+    portailIndisponible = false;
+  }
   const fields = buildFields('Brouillon');
   let rec;
   if (state.id) ({ visite: rec } = await api.patch(`/visites/${state.id}`, { fields }));
@@ -897,7 +921,7 @@ async function onDraft() {
     const { attachFails } = await saveRecord();
     if (attachFails) throw new Error(`${attachFails} pièce(s) jointe(s) non envoyée(s). Réessayez avant de quitter.`);
     markSynced(); toast('Brouillon enregistré en ligne', 'success');
-  } catch (e) { toast(e.message, 'danger'); }
+  } catch (e) { persist(); toast(e.message, 'danger'); }
   finally { endOperation(btn); }
 }
 async function onPreview() {
@@ -1150,9 +1174,18 @@ function initVisitSteps() {
   let initial = null;
   let colOverride = null;
   const localDraft = readLocalDraft();
+  if (offlineResume && !localDraft) {
+    toast('Aucun brouillon à reprendre hors ligne sur cet appareil.', 'danger');
+    document.querySelector('main').inert = true;
+    return;
+  }
   if (!state.id && localDraft?.id) restoreLocal(localDraft);
+  if (offlineResume) {
+    loadFailed = Boolean(state.id);
+    baseAnswers = localDraft.baseAnswers ?? null;
+  }
   let remoteLoaded = false;
-  if (state.id) {
+  if (state.id && !offlineResume) {
     try {
       const { visite } = await api.get(`/visites/${state.id}`);
       const f = visite.fields || {};
@@ -1187,6 +1220,7 @@ function initVisitSteps() {
     } catch (e) {
       if (!localDraft) { toast('Impossible de charger la visite. Réessayez ; aucune donnée ne sera écrasée.', 'danger'); document.querySelector('main').inert = true; return; }
       loadFailed = true;
+      baseAnswers = localDraft.baseAnswers ?? null;
       toast('Serveur indisponible : reprise du brouillon de cet appareil.', 'danger');
     }
   }
@@ -1271,7 +1305,10 @@ function initVisitSteps() {
   wireClientSearch();
   refreshProspectChip();
   ready = true;
-  setSaveStatus(dirty ? 'Sur cet appareil · à envoyer' : (state.id ? 'Enregistré en ligne' : 'Nouvelle visite'));
+  setSaveStatus(dirty ? LOCAL_PENDING : (state.id ? 'Enregistré en ligne' : 'Nouvelle visite'));
+  if (portailIndisponible || offlineResume) {
+    toast('Travail sur cet appareil. L’envoi reprendra après vérification de votre accès.');
+  }
   initVisitSteps();
 })();
 

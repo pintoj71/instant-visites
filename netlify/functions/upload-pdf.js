@@ -1,10 +1,12 @@
 // POST /api/upload-pdf  body: { visiteId, pdfBase64, filename }
 // Ajoute le PDF rapport en pièce jointe sur la visite (Content API Airtable).
-import { requireAuth, FIELDS, isValidRecordId, uploadAttachment, json, unauthorized, badRequest, serverError } from './_lib.js';
+import { FIELDS, isValidRecordId, uploadAttachment, json, badRequest, serverError } from './_lib.js';
+
+import { verifierAcces } from './portail.js';
 
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
   if (event.httpMethod !== 'POST') return badRequest('POST only');
 
   let body;

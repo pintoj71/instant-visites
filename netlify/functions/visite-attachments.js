@@ -1,7 +1,7 @@
 // GET /api/visite-attachments?visiteId=recXXX
 // Renvoie photos+croquis convertis en dataURL base64 (pour affichage UI + PDF).
 // Le téléchargement passe par le serveur (l'URL Airtable est S3-signée et bloquée par la CSP côté browser).
-import { requireAuth, airtable, TABLES, BASES, isValidRecordId, unauthorized, badRequest, json, serverError } from './_lib.js';
+import { airtable, TABLES, BASES, isValidRecordId, badRequest, json, serverError } from './_lib.js';
 
 async function fetchAsDataUrl(url, type) {
   const res = await fetch(url);
@@ -11,9 +11,11 @@ async function fetchAsDataUrl(url, type) {
   return `data:${ct};base64,${buf.toString('base64')}`;
 }
 
+import { verifierAcces } from './portail.js';
+
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
   const visiteId = event.queryStringParameters?.visiteId;
   if (!isValidRecordId(visiteId)) return badRequest('visiteId invalide');
   try {

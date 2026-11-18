@@ -3,13 +3,15 @@
 // Création/recherche des clients & prospects de l'activité visites techniques,
 // distincts de la base maintenance (Entretien & Ramonage).
 import {
-  requireAuth, airtable, TABLES, PROSPECT_WRITABLE, pickWritable, escapeFormula,
-  isValidRecordId, json, unauthorized, badRequest, serverError
+  airtable, TABLES, PROSPECT_WRITABLE, pickWritable, escapeFormula,
+  isValidRecordId, json, badRequest, serverError
 } from './_lib.js';
 
+import { verifierAcces } from './portail.js';
+
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
 
   const rest = event.path.replace(/^.*\/prospects/, '');
   const id = rest.replace(/^\//, '').split('?')[0];

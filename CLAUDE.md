@@ -83,9 +83,9 @@ L'app est une case du portail de l'équipe (`https://app.instantbypinto.fr`, mod
   `POST /api/portail` (`netlify/functions/portail.js`), qui l'échange dans Supabase (`portail_echanger`)
   contre le prénom de la personne, retrouve son technicien dans la table `Techniciens` (par prénom,
   sans accent : « Mickael » → « Mickael PINTO ») et pose le **même cookie de session** que le PIN.
-- À chaque ouverture d'écran, `/api/me` redemande au portail si l'accès tient toujours
-  (`portail_verifier`). Une personne décochée dans « Accès de l'équipe » est sortie à l'écran suivant.
-  Si le portail ne répond pas, la session en cours continue (12 h au plus).
+- Les API protégées revérifient le droit portail (`portail_verifier`). Un refus explicite ferme la
+  session. Si le portail ne répond pas, une session encore valide peut lire les fiches et continuer
+  la saisie locale, tandis que les écritures sont suspendues.
 - Variable Netlify **`PORTAIL_MODULE_CLE`** = valeur de `secret_visites` dans `cat_config` (Supabase,
   projet « Instant by Pinto »). Sans elle, `/api/portail` répond 503 et l'app marche au PIN seul.
 - Le PIN reste en secours. Lien « ← Portail » dans l'en-tête quand on est entré par le portail.
@@ -143,7 +143,9 @@ qui doivent rester **stables**). Le PDF lit les mêmes définitions.
 ## Limites et vérifications
 
 - `npm test` : scénarios avec DOM et API simulée (restauration, échecs d'envoi, clôture, signatures, pagination et 9 types).
-- Pas de garantie de fonctionnement intégral hors ligne : ouvrir une visite nécessite une session serveur ; PDF chargé via CDN. Une visite déjà ouverte conserve les modifications localement tant que le quota le permet.
+- Hors ligne, une identité vérifiée et encore valide permet de rouvrir ses brouillons sur le même
+  appareil. Au retour du réseau, une visite existante doit être rouverte avant l’envoi pour comparer
+  les versions. Le PDF dépend du CDN et des pièces jointes accessibles.
 - En cas de conflit avec une version en ligne, le technicien choisit la version à reprendre. Pas de fusion automatique des modifications de plusieurs appareils.
 - Les contrôles techniques imposent un minimum de description, sans certification réglementaire. Une section peut être explicitement non applicable.
 - Bumper VERSION dans public/sw.js pour chaque mise à jour visible.

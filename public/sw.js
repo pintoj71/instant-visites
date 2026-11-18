@@ -1,6 +1,6 @@
 // Service Worker — cache-first pour les assets, network-first pour les APIs.
 // IMPORTANT : bumper VERSION à chaque modif visible pour forcer la mise à jour.
-const VERSION = 'v1.9.0';
+const VERSION = 'v1.9.1';
 const CACHE = `instant-visites-${VERSION}`;
 const ASSETS = [
   '/',
@@ -60,7 +60,9 @@ self.addEventListener('fetch', (e) => {
         }).catch(() => {
           // Hors-ligne et non caché : renvoyer l'app shell seulement pour une
           // navigation (sinon on servirait du HTML à la place d'un JS/CSS/image).
-          if (e.request.mode === 'navigate') return caches.match('/dashboard.html');
+          if (e.request.mode === 'navigate') {
+            return caches.match(url.pathname === '/visite.html' ? '/visite.html' : '/dashboard.html');
+          }
           return Response.error();
         });
       })

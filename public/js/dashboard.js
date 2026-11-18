@@ -1,11 +1,13 @@
-import { api, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
+import { api, forgetOfflineIdentity, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
 
 // Auth + nom
 api.get('/me').then(u => {
   document.getElementById('userName').textContent = u.name;
   // entré par le portail Instant : le retour au portail est proposé dans l'en-tête
   if (u.portail) document.getElementById('versPortail').hidden = false;
-}).catch(() => location.href = '/');
+}).catch(error => {
+  if ((error.status && error.status < 500) || !api.offlineIdentity()) location.href = '/';
+});
 
 const listEl = document.getElementById('list');
 const searchEl = document.getElementById('search');
@@ -55,6 +57,32 @@ function render(records) {
   });
 }
 
+function renderLocalDrafts() {
+  const identity = api.offlineIdentity?.();
+  if (!identity) return false;
+
+  const prefix = `visite:${encodeURIComponent(identity.name)}:`;
+  const links = [];
+  for (const key of Object.keys(localStorage).filter(key => key.startsWith(prefix))) {
+    try {
+      const draft = JSON.parse(localStorage.getItem(key));
+      if (draft.owner !== identity.name || draft.dirty === false) continue;
+      const suffix = key.slice(prefix.length);
+      if (suffix !== 'new' && !/^rec[A-Za-z0-9]{14}$/.test(suffix)) continue;
+      const link = document.createElement('a');
+      link.className = 'visite-item';
+      link.href = suffix === 'new' ? '/visite.html' : `/visite.html?id=${suffix}`;
+      link.textContent = draft.data?.client || 'Brouillon sans nom';
+      links.push(link);
+    } catch {}
+  }
+  const label = document.createElement('div');
+  label.className = 'empty';
+  label.textContent = links.length ? 'Brouillons sur ce téléphone' : 'Aucun brouillon sur ce téléphone';
+  listEl.replaceChildren(label, ...links);
+  return true;
+}
+
 async function load(when, q = '', append = false) {
   const version = ++loadVersion;
   lastQuery = q;
@@ -72,6 +100,7 @@ async function load(when, q = '', append = false) {
     moreBtn.hidden = !cursor;
   } catch (err) {
     if (version !== loadVersion) return;
+    if (!append && (!err.status || err.status >= 500) && renderLocalDrafts()) return;
     toast(err.message, 'danger');
     if (!append) listEl.innerHTML = `<div class="empty">${escapeHtml(err.message)}</div>`;
     else moreBtn.hidden = false;
@@ -100,6 +129,7 @@ searchEl.addEventListener('input', () => {
 });
 
 document.getElementById('logoutBtn').addEventListener('click', async () => {
+  forgetOfflineIdentity();
   try { await api.post('/logout', {}); } catch {}
   location.href = '/';
 });

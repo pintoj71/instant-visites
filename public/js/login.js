@@ -16,7 +16,9 @@ if (ticket) {
   });
 } else {
   // Déjà connecté ? -> dashboard
-  api.get('/me').then(() => location.href = '/dashboard.html').catch(() => {});
+  api.get('/me').then(() => location.href = '/dashboard.html').catch(error => {
+    if ((!error.status || error.status >= 500) && api.offlineIdentity()) location.href = '/dashboard.html';
+  });
 }
 
 const form = document.getElementById('loginForm');

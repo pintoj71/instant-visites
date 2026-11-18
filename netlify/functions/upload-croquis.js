@@ -1,11 +1,13 @@
 // POST /api/upload-croquis  body: { visiteId, croquisBase64, filename }
 // Ajoute un croquis (PNG, base64) en pièce jointe sur la visite.
 // Même mécanique que upload-photo : 1 appel par croquis (append).
-import { requireAuth, airtable, TABLES, FIELDS, isValidRecordId, uploadAttachment, json, unauthorized, badRequest, serverError } from './_lib.js';
+import { airtable, TABLES, FIELDS, isValidRecordId, uploadAttachment, json, badRequest, serverError } from './_lib.js';
+
+import { verifierAcces } from './portail.js';
 
 export const handler = async (event) => {
-  const user = requireAuth(event);
-  if (!user) return unauthorized();
+  const { refus } = await verifierAcces(event);
+  if (refus) return refus;
   if (event.httpMethod !== 'POST') return badRequest('POST only');
 
   let body;
