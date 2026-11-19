@@ -10,8 +10,8 @@ import {
 } from './_lib.js';
 
 const MODULE = 'visites';
-const SUPABASE_URL = 'https://uckzjoyikxqalmvyjmug.supabase.co';
-const SUPABASE_PUBLIC = 'sb_publishable_z9F86OZ59d1Rlhhzctt3fg_-tlIeg0c'; // clé publique par nature
+const SUPABASE_URL = 'https://anmcbpbgttjfegoghemi.supabase.co';
+const SUPABASE_PUBLIC = 'sb_publishable_kroYWZvyPl5DxtUZsJ_ndA_OkWnO7r3'; // clé publique par nature
 
 export const portailActif = (env = process.env) =>
   typeof env.PORTAIL_MODULE_CLE === 'string' && env.PORTAIL_MODULE_CLE.trim().length >= 32;
