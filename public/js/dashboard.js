@@ -1,11 +1,7 @@
-import { api, forgetOfflineIdentity, pageDeSortie, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
+import { api, pageDeSortie, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
 
-// Auth + nom
-api.get('/me').then(u => {
-  document.getElementById('userName').textContent = u.name;
-  // entré par le portail Instant : le retour au portail est proposé dans l'en-tête
-  if (u.portail) document.getElementById('versPortail').hidden = false;
-}).catch(error => {
+// Auth : accès retiré ou session finie → retour au portail (la seule porte)
+api.get('/me').catch(error => {
   if ((error.status && error.status < 500) || !api.offlineIdentity()) location.href = pageDeSortie();
 });
 
@@ -126,12 +122,6 @@ searchEl.addEventListener('input', () => {
     if (q.length >= 2) load(null, q);
     else load(currentWhen);
   }, 300);
-});
-
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-  forgetOfflineIdentity();
-  try { await api.post('/logout', {}); } catch {}
-  location.href = '/';
 });
 
 load('today');

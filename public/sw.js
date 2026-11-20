@@ -1,6 +1,6 @@
 // Service Worker — réseau d'abord pour tout (pages, fichiers) ; cache = secours hors ligne. APIs jamais en cache.
 // IMPORTANT : bumper VERSION à chaque modif visible pour forcer la mise à jour.
-const VERSION = 'v1.9.3';
+const VERSION = 'v1.9.4';
 const CACHE = `instant-visites-${VERSION}`;
 const ASSETS = [
   '/',
@@ -20,6 +20,7 @@ const ASSETS = [
   '/js/logo.js',
   '/manifest.json',
   '/icons/icon.svg',
+  '/icons/flamme.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
 ];

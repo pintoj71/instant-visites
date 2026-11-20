@@ -538,7 +538,7 @@ html.no-scroll, body.no-scroll { overflow: hidden; }
 /* Responsive */
 @media (max-width: 600px) {
   .app-header { padding: 10px 12px; }
-  .app-header .logo { font-size: 13px; }
+  .app-header .logo { font-size: 18px; }
   main { padding: 12px; }
   h1 { font-size: 16px; }
   .actions-bar { margin: 16px -12px -12px; }
@@ -585,15 +585,15 @@ button, input, select, textarea { font-family: inherit; }
 h1 { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 24px; line-height: 1.1; color: var(--primary-2); }
 h2 { font-size: 16px; font-weight: 600; color: var(--primary); }
 
-/* en-tête clair, posé sur le fond */
-.app-header { background: rgba(250,246,241,.94); color: var(--text); box-shadow: none; border-bottom: 1px solid var(--border); padding: 10px 14px; gap: 10px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
-.app-header .logo { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 19px; letter-spacing: 0; color: var(--primary-2); }
-.app-header .user { color: var(--muted); font-size: 13px; opacity: 1; }
-.app-header button, .portail-lien { background: #fff; color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 500; min-height: 38px; }
+/* en-tête commun à toutes les applis Instant : crème, filet, flamme + nom de l'appli, un seul bouton à droite */
+.app-header { position: sticky; top: 0; z-index: 100; display: flex; align-items: center; gap: 10px; background: #faf6f1; color: var(--text); box-shadow: none; border-bottom: 1px solid #e6ddd3; padding: calc(10px + env(safe-area-inset-top)) 14px 10px; }
+.app-header .flamme { height: 28px; width: auto; flex: none; display: block; }
+.app-header .logo { font-family: 'DM Serif Display', Georgia, serif; font-weight: 400; font-size: 20px; letter-spacing: 0; color: #7a2838; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.app-header .spacer { flex: 1; }
+.app-header button, .portail-lien { background: #fff; color: #7a2838; border: 1px solid #e6ddd3; border-radius: 999px; padding: 8px 14px; font-family: 'Outfit', system-ui, sans-serif; font-size: 14px; font-weight: 500; min-height: 38px; cursor: pointer; flex: none; }
 .app-header button:hover { background: #F3EDE4; }
 .portail-lien { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
-.portail-lien[hidden] { display: none; }
-.save-status { color: var(--muted); }
+.save-status { color: var(--muted); max-width: none; text-align: left; padding: 0 2px 8px; font-size: 13px; white-space: normal; }
 
 /* cartes, boutons, champs */
 .card { border-radius: 20px; border: 0; box-shadow: var(--shadow); }

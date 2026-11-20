@@ -1,3 +1,10 @@
+## v1.9.4 — Une seule porte, un seul haut d'écran
+
+- On entre dans Visites techniques uniquement par le portail Instant : plus d'écran de code PIN, plus de choix du nom, plus de bouton « Déconnexion ».
+- Ouverture directe (lien enregistré, appli sur l'écran d'accueil) sans session : renvoi immédiat au portail, qui rouvre l'appli tout seul. Deuxième échec en moins de 2 minutes : « L'ouverture n'a pas marché. » + « ← Retour au portail ».
+- Haut d'écran identique à celui du portail : fond crème, flamme Instant, « Visites techniques » en bordeaux, un seul bouton à droite (« ← Portail » sur la liste, « ← Retour » dans une visite). L'état d'enregistrement passe sous la bande.
+- Le rapport PDF n'est pas touché. Le code serveur du PIN reste en place, inutilisé. Service worker v1.9.4.
+
 ## v1.9.3 — Entrée invisible depuis le portail
 
 - Arrivée depuis le portail : l'écran du code n'apparaît plus, même une fraction de seconde. Un petit script lu avant l'affichage (`js/entree.js`) cache la connexion ; seul « Ouverture… » est visible pendant l'échange du ticket.

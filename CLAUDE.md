@@ -88,7 +88,14 @@ L'app est une case du portail de l'équipe (`https://app.instantbypinto.fr`, mod
   la saisie locale, tandis que les écritures sont suspendues.
 - Variable Netlify **`PORTAIL_MODULE_CLE`** = valeur de `secret_visites` dans `cat_config` (Supabase,
   projet « Instant by Pinto »). Sans elle, `/api/portail` répond 503 et l'app marche au PIN seul.
-- Le PIN reste en secours. Lien « ← Portail » dans l'en-tête quand on est entré par le portail.
+- **Porte unique (v1.9.4)** : plus aucun écran de code, de choix de nom ni de « Déconnexion » dans l'appli ; on entre
+  uniquement par le portail. Ouverture directe (y compris l'appli installée, `start_url` = `/dashboard.html`) sans ticket ni
+  session → `location.replace('https://app.instantbypinto.fr/?rouvrir=visites')` (`login.js` pour `/`, `pageDeSortie()` dans
+  `api.js` pour les autres pages), anti-boucle `sessionStorage.rouvrir_visites`. Le code serveur du PIN (`/api/login`,
+  `/api/techniciens`, `/api/logout`) reste en place, inutilisé par l'écran.
+- **Haut d'écran commun** : bande crème `#faf6f1`, filet `#e6ddd3`, sticky avec `env(safe-area-inset-top)` ; flamme
+  `icons/flamme.png` (28 px) + « Visites techniques » (DM Serif Display 20 px, bordeaux `#7a2838`) ; un seul bouton à droite :
+  « ← Portail » sur la liste, « ← Retour » dans la visite. L'état d'enregistrement est sous la bande, plus dedans.
 - **Entrée invisible (v1.9.3)** : `js/entree.js` (script classique dans `<head>`, pas de script inline à cause
   de la CSP) pose la classe `entree-portail` sur `<html>` si l'adresse porte `#ticket=` → l'écran du code est
   caché, seul « Ouverture… » (`#entreeAttente`) s'affiche. Échec du ticket → `location.replace` vers
@@ -108,7 +115,7 @@ L'app est une case du portail de l'équipe (`https://app.instantbypinto.fr`, mod
 
 ```
 public/
-├── index.html / js/login.js          # Connexion (menu technicien + PIN)
+├── index.html / js/login.js          # Entrée : ticket du portail ou renvoi au portail (plus d'écran de code)
 ├── dashboard.html / js/dashboard.js  # Liste visites (tabs today/week/all) + recherche
 ├── visite.html / js/visite.js        # Formulaire dynamique (cœur de l'app)
 ├── js/points-visite.js               # Définition des sections/champs par type (DATA-DRIVEN)
@@ -189,3 +196,5 @@ qui doivent rester **stables**). Le PDF lit les mêmes définitions.
   Le login ouvre la liste par `location.replace` ; la liste se recharge au retour (`pageshow`).
 - **v1.9.3** (2026-11) — Entrée invisible depuis le portail : jamais l'écran du code avec un ticket,
   ticket refusé → le portail rouvre l'appli, accès retiré → portail ; service worker en réseau d'abord.
+- **v1.9.4** (2026-11) — Porte unique et haut d'écran commun : plus d'écran de code ni de déconnexion, ouverture directe
+  renvoyée au portail (`?rouvrir=visites`), bande du haut identique à celle du portail (flamme + nom + un bouton).

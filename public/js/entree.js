@@ -1,3 +1,4 @@
-// Lu dans <head>, avant tout affichage : arrivée depuis le portail (#ticket=…) → l'écran du code
-// reste caché, seul un écran neutre « Ouverture… » est visible pendant l'échange du ticket.
-if (/[#&]ticket=[0-9a-f]{48}/.test(location.hash)) document.documentElement.classList.add('entree-portail');
+// Lu dans <head>, avant tout affichage : la page d'entrée n'a plus d'écran de code. Que l'on arrive avec
+// #ticket=… ou en direct, seul un écran neutre « Ouverture… » est visible pendant que l'appli vérifie
+// l'accès (ticket du portail, session déjà ouverte) ou renvoie au portail.
+document.documentElement.classList.add('entree-portail');
