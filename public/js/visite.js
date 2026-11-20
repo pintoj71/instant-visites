@@ -622,7 +622,7 @@ function markSynced() {
 function migrateStorageKey() {
   const oldKey = storageKey;
   storageKey = draftKey();
-  history.replaceState(null, '', `/visite.html?id=${state.id}`);
+  history.replaceState(history.state, '', `/visite.html?id=${state.id}`);
   // Conserver l'ancien brouillon si la copie échoue.
   if (persist() && oldKey !== storageKey) {
     try { localStorage.removeItem(oldKey); } catch {}
@@ -654,7 +654,7 @@ function restoreLocal(draft) {
   state.clientProspectName = draft.clientProspectName || '';
   state.gps = draft.gps || null;
   // Si la création avait réussi avant une interruption, reprendre le même dossier.
-  if (!state.id && draft.id) { state.id = draft.id; storageKey = draftKey(); history.replaceState(null, '', `/visite.html?id=${state.id}`); }
+  if (!state.id && draft.id) { state.id = draft.id; storageKey = draftKey(); history.replaceState(history.state, '', `/visite.html?id=${state.id}`); }
   // Réconcilier les envois dont la réponse a pu être perdue.
   for (const [pending, existing] of [['newPhotos', 'existingPhotos'], ['newCroquis', 'existingCroquis']]) {
     state[pending] = state[pending].filter(p => {
@@ -667,9 +667,31 @@ function restoreLocal(draft) {
 }
 window.addEventListener('pagehide', () => { if (dirty) { clearTimeout(saveTimer); persist(); } });
 document.addEventListener('visibilitychange', () => { if (document.hidden && dirty) { clearTimeout(saveTimer); persist(); } });
+let sortieRetenue = false;
 window.addEventListener('beforeunload', e => {
-  if (operation || (dirty && !persist())) { e.preventDefault(); e.returnValue = ''; }
+  if (operation || (dirty && !persist())) { sortieRetenue = true; e.preventDefault(); e.returnValue = ''; }
 });
+
+// ===== Retour =====
+// Une étape ouverte = une marche dans l'historique (voir initVisitSteps). « ← Retour » et le
+// bouton retour du téléphone font donc la même chose : étape d'avant, puis la liste des visites.
+function quitterVersListe() {
+  const marches = history.state?.prof || 0;
+  // La liste est juste derrière la visite seulement si on en vient ; sinon on l'ouvre à la place.
+  if (history.length > marches + 1 && document.referrer.startsWith(location.origin + '/')) {
+    sortieRetenue = false;
+    history.go(-(marches + 1));
+    // Filet : si le navigateur n'a pas bougé, ouvrir la liste quand même.
+    const filet = setTimeout(() => { if (!sortieRetenue) location.replace('/dashboard.html'); }, 1500);
+    window.addEventListener('pagehide', () => clearTimeout(filet), { once: true });
+  } else {
+    location.replace('/dashboard.html');
+  }
+}
+function retourArriere() {
+  if ((history.state?.prof || 0) > 0) history.back();
+  else quitterVersListe();
+}
 
 // ===== Validation =====
 function flashField(el) {
@@ -957,7 +979,7 @@ async function onFinalize() {
     markSynced(); finalized = true;
     try { doc.save(fname); } catch { toast('Rapport enregistré en ligne ; téléchargement indisponible.', 'danger'); }
     toast('Visite terminée et rapport enregistré', 'success');
-    setTimeout(() => { location.href = '/dashboard.html'; }, 1400);
+    setTimeout(quitterVersListe, 1400);
   } catch (e) {
     toast('Clôture non confirmée : ' + e.message, 'danger');
     // Ce message reste visible après la disparition du toast.
@@ -1144,10 +1166,31 @@ function initVisitSteps() {
     next.textContent = current === steps.length - 1 ? '' : `Continuer vers ${names[current + 1].toLowerCase()} →`;
     if (move) window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  buttons.forEach((b, i) => b.addEventListener('click', () => render(i)));
-  prev.addEventListener('click', () => render(current - 1));
-  next.addEventListener('click', () => render(current === steps.length - 1 ? 3 : current + 1));
-  render(0, false);
+  // Historique : changer d'étape ajoute une marche, le retour du téléphone la redescend.
+  // Les champs restent tous dans la page : changer d'étape ne touche à aucune saisie.
+  const go = index => {
+    const cible = Math.max(0, Math.min(steps.length - 1, index));
+    if (cible !== current) {
+      const ici = history.state || {};
+      // Revenir à l'étape d'où l'on vient : on redescend la marche au lieu d'en empiler une.
+      if ((ici.prof || 0) > 0 && ici.de === cible) history.back();
+      else history.pushState({ visiteEtape: cible, de: current, prof: (ici.prof || 0) + 1 }, '', state.id ? `/visite.html?id=${state.id}` : location.pathname + location.search);
+    }
+    render(cible);
+  };
+  window.addEventListener('popstate', e => {
+    // Une marche créée avant le premier enregistrement n'a pas encore l'identifiant de la visite.
+    if (state.id && !location.search.includes(state.id)) history.replaceState(history.state, '', `/visite.html?id=${state.id}`);
+    const cible = Number.isInteger(e.state?.visiteEtape) ? e.state.visiteEtape : 0;
+    render(cible, cible !== current);
+  });
+  buttons.forEach((b, i) => b.addEventListener('click', () => go(i)));
+  prev.addEventListener('click', () => go(current - 1));
+  next.addEventListener('click', () => go(current === steps.length - 1 ? 3 : current + 1));
+  // Page rechargée en cours de visite : on reprend l'étape notée dans l'historique.
+  const reprise = Number.isInteger(history.state?.visiteEtape) ? history.state.visiteEtape : null;
+  if (reprise === null) history.replaceState({ visiteEtape: 0, prof: 0 }, '', location.pathname + location.search);
+  render(reprise ?? 0, false);
 }
 
 (async function init() {
@@ -1300,7 +1343,7 @@ function initVisitSteps() {
   document.getElementById('draftBtn').addEventListener('click', onDraft);
   document.getElementById('previewBtn').addEventListener('click', onPreview);
   document.getElementById('finalizeBtn').addEventListener('click', onFinalize);
-  document.getElementById('backBtn').addEventListener('click', () => { location.href = '/dashboard.html'; });
+  document.getElementById('backBtn').addEventListener('click', retourArriere);
   wireProspectSearch();
   wireClientSearch();
   refreshProspectChip();

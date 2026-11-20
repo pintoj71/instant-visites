@@ -1,3 +1,11 @@
+## v1.9.2 — Flèches retour
+
+- Dans une visite : une seule flèche « ← Retour ». Elle revient à l'étape d'avant, puis à la liste des visites ; le bouton retour du téléphone fait pareil au lieu de quitter la visite.
+- « ← Précédent » devient « Étape précédente » (sans flèche).
+- Changer d'étape ne touche pas à la saisie ; l'adresse garde l'identifiant de la visite ; une page rechargée reprend à la même étape.
+- Après « Terminer la visite », retour à la liste sans laisser la visite derrière. La liste se recharge quand on y revient.
+- La page de connexion ne reste plus dans l'historique (le retour depuis la liste ne boucle plus dessus).
+
 ## v1.8.0 — Fiabilité des visites et parcours simplifié
 
 - Brouillons locaux isolés par technicien, restaurés aussi pour les visites existantes ; sauvegarde au départ et après une signature.

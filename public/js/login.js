@@ -10,14 +10,14 @@ if (ticket) {
   api.post('/portail', { ticket }).then((res) => {
     localStorage.setItem('userName', res.name || '');
     localStorage.setItem('viaPortail', '1');
-    location.href = '/dashboard.html';
+    location.replace('/dashboard.html');
   }).catch((err) => {
     if (msg) { msg.classList.remove('info'); msg.textContent = err.message === 'Non autorisé' ? 'Lien expiré. Repasse par le portail.' : (err.message || 'Entrée par le portail impossible'); }
   });
 } else {
-  // Déjà connecté ? -> dashboard
-  api.get('/me').then(() => location.href = '/dashboard.html').catch(error => {
-    if ((!error.status || error.status >= 500) && api.offlineIdentity()) location.href = '/dashboard.html';
+  // Déjà connecté ? -> dashboard (replace : le retour du téléphone ne repasse pas par cette page)
+  api.get('/me').then(() => location.replace('/dashboard.html')).catch(error => {
+    if ((!error.status || error.status >= 500) && api.offlineIdentity()) location.replace('/dashboard.html');
   });
 }
 
@@ -61,7 +61,7 @@ form.addEventListener('submit', async (e) => {
     const res = await api.post('/login', { pin, name });
     localStorage.setItem('userName', res.name || name);
     localStorage.removeItem('viaPortail');
-    location.href = '/dashboard.html';
+    location.replace('/dashboard.html');
   } catch (err) {
     errorEl.textContent = err.message || 'Erreur de connexion';
     btn.disabled = false;

@@ -173,3 +173,9 @@ qui doivent rester **stables**). Le PDF lit les mêmes définitions.
   rapport PDF IBP, PWA. Base Airtable dédiée créée.
 - **v1.9.0** (2026-11) — Entrée par le portail Instant (module `visites`), habillage du portail,
   passerelle « Chiffrer le conduit dans Fumisterie ».
+- **v1.9.2** (2026-11) — Flèches retour : dans une visite, une seule flèche « ← Retour ». Chaque étape
+  ouverte ajoute une marche dans l'historique (`history.pushState` dans `initVisitSteps`, état
+  `{ visiteEtape, de, prof }`), donc « ← Retour » et le bouton retour du téléphone reviennent à
+  l'étape d'avant, puis à la liste (`retourArriere` / `quitterVersListe` dans `visite.js`).
+  ⚠️ Tout `history.replaceState` de `visite.js` doit repasser `history.state` (sinon l'étape est perdue).
+  Le login ouvre la liste par `location.replace` ; la liste se recharge au retour (`pageshow`).

@@ -136,6 +136,13 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
 
 load('today');
 
+// Retour depuis une visite : si le navigateur ressort la liste de sa mémoire, on la recharge.
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;
+  const q = searchEl.value.trim();
+  if (q.length >= 2) load(null, q); else load(currentWhen);
+});
+
 // PWA install
 let deferredPrompt;
 const banner = document.getElementById('installBanner');
