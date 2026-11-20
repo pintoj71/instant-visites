@@ -270,3 +270,91 @@ test('Panne du portail : l’envoi attend une vérification positive et conserve
     assert.equal(x.app.readLocalDraft(), null);
   } finally { x.close(); }
 });
+
+// ===== Flèches retour =====
+const popstate = w => new Promise(resolve => w.addEventListener('popstate', () => setTimeout(resolve, 0), { once: true }));
+const panneauVisible = w => [...w.document.querySelectorAll('[data-visit-panel]')].filter(p => !p.hidden).map(p => p.dataset.visitPanel).join(',');
+test('Retour : une seule flèche « ← » dans le formulaire, et le login ne reste pas dans l’historique', async () => {
+  const loginJs = await readFile(new URL('../public/js/login.js', import.meta.url), 'utf8');
+  assert.equal(/location\.href\s*=/.test(loginJs), false);
+  assert.match(loginJs, /history\.replaceState\(null, '', location\.pathname \+ location\.search\)/);
+  const x = await setup();
+  try {
+    const fleches = [...x.w.document.querySelectorAll('button, a')].filter(b => b.textContent.includes('←'));
+    assert.deepEqual(fleches.map(b => b.id), ['backBtn']);
+    assert.equal(x.w.document.getElementById('backBtn').textContent, '← Retour');
+    assert.equal(x.w.document.getElementById('visitPrev').textContent, 'Étape précédente');
+  } finally { x.close(); }
+});
+test('Retour : le retour du téléphone revient à l’étape d’avant sans perdre la saisie', async () => {
+  const x = await setup();
+  try {
+    const w = x.w, client = w.document.querySelector('[data-key="client"]');
+    assert.deepEqual({ ...w.history.state }, { visiteEtape: 0, prof: 0 });
+    client.value = 'Saisie avant retour';
+    client.dispatchEvent(new w.Event('input', { bubbles: true }));
+    w.document.getElementById('visitNext').click();
+    w.document.getElementById('visitNext').click();
+    assert.equal(panneauVisible(w), 'preuves');
+    assert.equal(w.history.length, 3);
+    assert.match(w.location.search, /id=rec/);
+    x.pads[0].sign();
+    // bouton retour du téléphone
+    let attente = popstate(w); w.history.back(); await attente;
+    assert.equal(panneauVisible(w), 'releve');
+    assert.equal(client.value, 'Saisie avant retour');
+    // la flèche « ← Retour » fait la même chose
+    attente = popstate(w); w.document.getElementById('backBtn').click(); await attente;
+    assert.equal(panneauVisible(w), 'projet');
+    assert.equal(w.document.getElementById('visitPrev').disabled, true);
+    assert.equal(client.value, 'Saisie avant retour');
+    w.dispatchEvent(new w.Event('pagehide'));
+    const d = x.app.readLocalDraft();
+    assert.equal(d.data.client, 'Saisie avant retour');
+    assert.match(d.sigTech, /^data:image/);
+    assert.equal(x.app.buildFields('Brouillon').Client, 'Saisie avant retour');
+  } finally { x.close(); }
+});
+test('Retour : « Étape précédente » redescend l’historique au lieu de l’allonger', async () => {
+  const x = await setup();
+  try {
+    const w = x.w;
+    w.document.getElementById('visitNext').click();
+    assert.equal(w.history.length, 2);
+    const attente = popstate(w);
+    w.document.getElementById('visitPrev').click();
+    assert.equal(panneauVisible(w), 'projet');
+    await attente;
+    assert.equal(panneauVisible(w), 'projet');
+    assert.equal(w.history.state.visiteEtape, 0);
+    w.document.querySelector('[data-visit-step="bilan"]').click();
+    assert.equal(panneauVisible(w), 'bilan');
+    assert.equal(w.history.length, 2);
+    assert.deepEqual({ ...w.history.state }, { visiteEtape: 3, de: 0, prof: 1 });
+  } finally { x.close(); }
+});
+test('Retour : nouvelle visite enregistrée en cours d’étape, l’adresse garde son identifiant', async () => {
+  const x = await setup({ newVisit: true, draft: { data: validData, sigTech: 's', sigClient: 's' } });
+  try {
+    const w = x.w;
+    w.document.getElementById('visitNext').click();
+    await x.app.onDraft();
+    assert.match(w.location.search, /id=rec/);
+    assert.equal(w.history.state.visiteEtape, 1);
+    const attente = popstate(w); w.history.back(); await attente;
+    assert.equal(panneauVisible(w), 'projet');
+    assert.match(w.location.search, /id=rec/);
+    assert.equal(w.document.querySelector('[data-key="client"]').value, validData.client);
+    assert.equal(x.calls.filter(c => c[0] === 'post' && c[1] === '/visites').length, 1);
+  } finally { x.close(); }
+});
+test('Retour : clôture et PDF inchangés depuis une étape intermédiaire', async () => {
+  const x = await setup();
+  try {
+    x.w.document.getElementById('visitNext').click();
+    x.w.document.getElementById('visitNext').click();
+    await x.app.onFinalize();
+    assert.equal(x.calls.filter(c => c[0] === 'pdf').length, 1);
+    assert.equal(x.record.fields.Statut, 'Terminée');
+  } finally { x.close(); }
+});

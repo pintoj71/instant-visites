@@ -1,6 +1,6 @@
-// Service Worker — cache-first pour les assets, network-first pour les APIs.
+// Service Worker — réseau d'abord pour tout (pages, fichiers) ; cache = secours hors ligne. APIs jamais en cache.
 // IMPORTANT : bumper VERSION à chaque modif visible pour forcer la mise à jour.
-const VERSION = 'v1.9.1';
+const VERSION = 'v1.9.4';
 const CACHE = `instant-visites-${VERSION}`;
 const ASSETS = [
   '/',
@@ -10,6 +10,7 @@ const ASSETS = [
   '/css/style.css',
   '/js/api.js',
   '/js/login.js',
+  '/js/entree.js',
   '/js/dashboard.js',
   '/js/visite.js',
   '/js/points-visite.js',
@@ -19,6 +20,7 @@ const ASSETS = [
   '/js/logo.js',
   '/manifest.json',
   '/icons/icon.svg',
+  '/icons/flamme.png',
   '/icons/icon-192.png',
   '/icons/icon-512.png'
 ];
@@ -44,28 +46,29 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
-  // Network-first (pas de cache) pour les APIs
+  // APIs : jamais de cache, le navigateur va directement au serveur
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/.netlify/')) return;
 
-  // Cache-first pour les assets statiques de même origine
+  // Pages et fichiers de même origine : RÉSEAU D'ABORD (toujours la dernière version),
+  // le cache ne sert qu'en secours hors ligne. Les adresses des fichiers ne portent pas
+  // de numéro de version : un « cache d'abord » montrerait l'ancienne page après une mise à jour.
   if (e.request.method === 'GET' && url.origin === location.origin) {
     e.respondWith(
-      caches.match(e.request).then(cached => {
-        return cached || fetch(e.request).then(res => {
-          if (res.ok) {
-            const clone = res.clone();
-            caches.open(CACHE).then(c => c.put(e.request, clone));
-          }
-          return res;
-        }).catch(() => {
-          // Hors-ligne et non caché : renvoyer l'app shell seulement pour une
-          // navigation (sinon on servirait du HTML à la place d'un JS/CSS/image).
-          if (e.request.mode === 'navigate') {
-            return caches.match(url.pathname === '/visite.html' ? '/visite.html' : '/dashboard.html');
-          }
-          return Response.error();
-        });
-      })
+      fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request, { ignoreSearch: e.request.mode === 'navigate' }).then(cached => {
+        if (cached) return cached;
+        // Hors ligne et non caché : l'app shell seulement pour une navigation
+        // (sinon on servirait du HTML à la place d'un JS/CSS/image).
+        if (e.request.mode === 'navigate') {
+          return caches.match(url.pathname === '/visite.html' ? '/visite.html' : '/dashboard.html');
+        }
+        return Response.error();
+      }))
     );
   }
 });

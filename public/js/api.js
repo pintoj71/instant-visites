@@ -15,6 +15,18 @@ export function forgetOfflineIdentity() {
   try { localStorage.removeItem(OFFLINE_IDENTITY); } catch {}
 }
 
+// Où aller quand la session n'est plus valable (ou absente, ouverture directe) : toujours le portail,
+// la seule porte, jamais un écran de code. Le portail redonne un ticket et rouvre l'appli (?rouvrir=visites).
+// Anti-boucle : un 2e renvoi en moins de 2 minutes mène à l'accueil du portail, sans « rouvrir ».
+const PORTAIL = 'https://app.instantbypinto.fr';
+export function pageDeSortie() {
+  let avant = 0;
+  try { avant = Number(sessionStorage.getItem('rouvrir_visites')) || 0; } catch {}
+  if (Date.now() - avant < 2 * 60 * 1000) return PORTAIL;
+  try { sessionStorage.setItem('rouvrir_visites', String(Date.now())); } catch {}
+  return `${PORTAIL}/?rouvrir=visites`;
+}
+
 // Wrapper minimal pour les appels à /api/*
 export const api = {
   async req(path, options = {}) {
@@ -30,7 +42,7 @@ export const api = {
       if (res.status === 401) {
         forgetOfflineIdentity();
         if (location.pathname !== '/' && location.pathname !== '/index.html') {
-          location.href = '/';
+          location.href = pageDeSortie();
         }
         throw Object.assign(new Error('Non autorisé'), { status: 401 });
       }

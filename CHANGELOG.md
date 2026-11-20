@@ -1,3 +1,26 @@
+## v1.9.4 — Une seule porte, un seul haut d'écran
+
+- On entre dans Visites techniques uniquement par le portail Instant : plus d'écran de code PIN, plus de choix du nom, plus de bouton « Déconnexion ».
+- Ouverture directe (lien enregistré, appli sur l'écran d'accueil) sans session : renvoi immédiat au portail, qui rouvre l'appli tout seul. Deuxième échec en moins de 2 minutes : « L'ouverture n'a pas marché. » + « ← Retour au portail ».
+- Haut d'écran identique à celui du portail : fond crème, flamme Instant, « Visites techniques » en bordeaux, un seul bouton à droite (« ← Portail » sur la liste, « ← Retour » dans une visite). L'état d'enregistrement passe sous la bande.
+- Le rapport PDF n'est pas touché. Le code serveur du PIN reste en place, inutilisé. Service worker v1.9.4.
+
+## v1.9.3 — Entrée invisible depuis le portail
+
+- Arrivée depuis le portail : l'écran du code n'apparaît plus, même une fraction de seconde. Un petit script lu avant l'affichage (`js/entree.js`) cache la connexion ; seul « Ouverture… » est visible pendant l'échange du ticket.
+- Ticket refusé (expiré, déjà utilisé, réseau) : retour immédiat au portail (`?rouvrir=visites`), qui rouvre l'appli avec un ticket neuf. Deuxième échec en moins de 2 minutes : un seul message « L'ouverture n'a pas marché. » avec « ← Retour au portail ».
+- Accès retiré dans le portail ou session finie pour une personne entrée par le portail : sortie vers le portail, plus vers l'écran du code.
+- Service worker v1.9.3 : pages et fichiers en « réseau d'abord » (toujours la dernière version), le cache ne sert qu'hors ligne.
+- Le code PIN reste possible pour qui ouvre l'appli en direct. 7 tests ajoutés.
+
+## v1.9.2 — Flèches retour
+
+- Dans une visite : une seule flèche « ← Retour ». Elle revient à l'étape d'avant, puis à la liste des visites ; le bouton retour du téléphone fait pareil au lieu de quitter la visite.
+- « ← Précédent » devient « Étape précédente » (sans flèche).
+- Changer d'étape ne touche pas à la saisie ; l'adresse garde l'identifiant de la visite ; une page rechargée reprend à la même étape.
+- Après « Terminer la visite », retour à la liste sans laisser la visite derrière. La liste se recharge quand on y revient.
+- La page de connexion ne reste plus dans l'historique (le retour depuis la liste ne boucle plus dessus).
+
 ## v1.8.0 — Fiabilité des visites et parcours simplifié
 
 - Brouillons locaux isolés par technicien, restaurés aussi pour les visites existantes ; sauvegarde au départ et après une signature.

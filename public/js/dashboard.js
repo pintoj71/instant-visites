@@ -1,12 +1,8 @@
-import { api, forgetOfflineIdentity, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
+import { api, pageDeSortie, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
 
-// Auth + nom
-api.get('/me').then(u => {
-  document.getElementById('userName').textContent = u.name;
-  // entré par le portail Instant : le retour au portail est proposé dans l'en-tête
-  if (u.portail) document.getElementById('versPortail').hidden = false;
-}).catch(error => {
-  if ((error.status && error.status < 500) || !api.offlineIdentity()) location.href = '/';
+// Auth : accès retiré ou session finie → retour au portail (la seule porte)
+api.get('/me').catch(error => {
+  if ((error.status && error.status < 500) || !api.offlineIdentity()) location.href = pageDeSortie();
 });
 
 const listEl = document.getElementById('list');
@@ -128,13 +124,14 @@ searchEl.addEventListener('input', () => {
   }, 300);
 });
 
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-  forgetOfflineIdentity();
-  try { await api.post('/logout', {}); } catch {}
-  location.href = '/';
-});
-
 load('today');
+
+// Retour depuis une visite : si le navigateur ressort la liste de sa mémoire, on la recharge.
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted) return;
+  const q = searchEl.value.trim();
+  if (q.length >= 2) load(null, q); else load(currentWhen);
+});
 
 // PWA install
 let deferredPrompt;

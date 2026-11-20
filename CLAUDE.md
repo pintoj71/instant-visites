@@ -88,7 +88,22 @@ L'app est une case du portail de l'équipe (`https://app.instantbypinto.fr`, mod
   la saisie locale, tandis que les écritures sont suspendues.
 - Variable Netlify **`PORTAIL_MODULE_CLE`** = valeur de `secret_visites` dans `cat_config` (Supabase,
   projet « Instant by Pinto »). Sans elle, `/api/portail` répond 503 et l'app marche au PIN seul.
-- Le PIN reste en secours. Lien « ← Portail » dans l'en-tête quand on est entré par le portail.
+- **Porte unique (v1.9.4)** : plus aucun écran de code, de choix de nom ni de « Déconnexion » dans l'appli ; on entre
+  uniquement par le portail. Ouverture directe (y compris l'appli installée, `start_url` = `/dashboard.html`) sans ticket ni
+  session → `location.replace('https://app.instantbypinto.fr/?rouvrir=visites')` (`login.js` pour `/`, `pageDeSortie()` dans
+  `api.js` pour les autres pages), anti-boucle `sessionStorage.rouvrir_visites`. Le code serveur du PIN (`/api/login`,
+  `/api/techniciens`, `/api/logout`) reste en place, inutilisé par l'écran.
+- **Haut d'écran commun** : bande crème `#faf6f1`, filet `#e6ddd3`, sticky avec `env(safe-area-inset-top)` ; flamme
+  `icons/flamme.png` (28 px) + « Visites techniques » (DM Serif Display 20 px, bordeaux `#7a2838`) ; un seul bouton à droite :
+  « ← Portail » sur la liste, « ← Retour » dans la visite. L'état d'enregistrement est sous la bande, plus dedans.
+- **Entrée invisible (v1.9.3)** : `js/entree.js` (script classique dans `<head>`, pas de script inline à cause
+  de la CSP) pose la classe `entree-portail` sur `<html>` si l'adresse porte `#ticket=` → l'écran du code est
+  caché, seul « Ouverture… » (`#entreeAttente`) s'affiche. Échec du ticket → `location.replace` vers
+  `https://app.instantbypinto.fr/?rouvrir=visites` ; anti-boucle `sessionStorage.rouvrir_visites` (2e échec
+  < 2 min → message + « ← Retour au portail »). 401 pour une personne entrée par le portail → portail
+  (`pageDeSortie()` dans `api.js`), jamais l'écran du code.
+- **Service worker** : réseau d'abord pour pages et fichiers (les adresses ne sont pas versionnées),
+  cache = secours hors ligne seulement. Ne jamais remettre de « cache d'abord » sur les pages.
 - **Habillage** : le bloc « THÈME PORTAIL INSTANT » à la fin de `css/style.css` (fond crème, bordeaux,
   or, polices Outfit et DM Serif Display via Google Fonts, autorisées dans la CSP). Le supprimer
   rend l'ancien habillage. Le PDF n'est pas concerné.
@@ -100,7 +115,7 @@ L'app est une case du portail de l'équipe (`https://app.instantbypinto.fr`, mod
 
 ```
 public/
-├── index.html / js/login.js          # Connexion (menu technicien + PIN)
+├── index.html / js/login.js          # Entrée : ticket du portail ou renvoi au portail (plus d'écran de code)
 ├── dashboard.html / js/dashboard.js  # Liste visites (tabs today/week/all) + recherche
 ├── visite.html / js/visite.js        # Formulaire dynamique (cœur de l'app)
 ├── js/points-visite.js               # Définition des sections/champs par type (DATA-DRIVEN)
@@ -173,3 +188,13 @@ qui doivent rester **stables**). Le PDF lit les mêmes définitions.
   rapport PDF IBP, PWA. Base Airtable dédiée créée.
 - **v1.9.0** (2026-11) — Entrée par le portail Instant (module `visites`), habillage du portail,
   passerelle « Chiffrer le conduit dans Fumisterie ».
+- **v1.9.2** (2026-11) — Flèches retour : dans une visite, une seule flèche « ← Retour ». Chaque étape
+  ouverte ajoute une marche dans l'historique (`history.pushState` dans `initVisitSteps`, état
+  `{ visiteEtape, de, prof }`), donc « ← Retour » et le bouton retour du téléphone reviennent à
+  l'étape d'avant, puis à la liste (`retourArriere` / `quitterVersListe` dans `visite.js`).
+  ⚠️ Tout `history.replaceState` de `visite.js` doit repasser `history.state` (sinon l'étape est perdue).
+  Le login ouvre la liste par `location.replace` ; la liste se recharge au retour (`pageshow`).
+- **v1.9.3** (2026-11) — Entrée invisible depuis le portail : jamais l'écran du code avec un ticket,
+  ticket refusé → le portail rouvre l'appli, accès retiré → portail ; service worker en réseau d'abord.
+- **v1.9.4** (2026-11) — Porte unique et haut d'écran commun : plus d'écran de code ni de déconnexion, ouverture directe
+  renvoyée au portail (`?rouvrir=visites`), bande du haut identique à celle du portail (flamme + nom + un bouton).
