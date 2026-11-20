@@ -1,3 +1,11 @@
+## v1.9.3 — Entrée invisible depuis le portail
+
+- Arrivée depuis le portail : l'écran du code n'apparaît plus, même une fraction de seconde. Un petit script lu avant l'affichage (`js/entree.js`) cache la connexion ; seul « Ouverture… » est visible pendant l'échange du ticket.
+- Ticket refusé (expiré, déjà utilisé, réseau) : retour immédiat au portail (`?rouvrir=visites`), qui rouvre l'appli avec un ticket neuf. Deuxième échec en moins de 2 minutes : un seul message « L'ouverture n'a pas marché. » avec « ← Retour au portail ».
+- Accès retiré dans le portail ou session finie pour une personne entrée par le portail : sortie vers le portail, plus vers l'écran du code.
+- Service worker v1.9.3 : pages et fichiers en « réseau d'abord » (toujours la dernière version), le cache ne sert qu'hors ligne.
+- Le code PIN reste possible pour qui ouvre l'appli en direct. 7 tests ajoutés.
+
 ## v1.9.2 — Flèches retour
 
 - Dans une visite : une seule flèche « ← Retour ». Elle revient à l'étape d'avant, puis à la liste des visites ; le bouton retour du téléphone fait pareil au lieu de quitter la visite.

@@ -1,18 +1,38 @@
 import { api, escapeHtml } from '/js/api.js';
 
 // Arrivée depuis le portail Instant : l'adresse porte #ticket=… (60 s, une seule fois).
-// On l'échange contre une session, puis on ouvre le tableau de bord comme après un PIN.
+// L'écran du code est déjà caché (js/entree.js). On échange le ticket contre une session,
+// puis on ouvre le tableau de bord comme après un PIN. Échec → le portail rouvre l'appli avec
+// un ticket neuf ; 2e échec en moins de 2 minutes → un seul message, toujours sans l'écran du code.
+const PORTAIL = 'https://app.instantbypinto.fr';
+const MODULE = 'visites';
+const CLE_ROUVRIR = `rouvrir_${MODULE}`;
 const ticket = (location.hash.match(/ticket=([0-9a-f]{48})/) || [])[1];
 if (ticket) {
   history.replaceState(null, '', location.pathname + location.search);
-  const msg = document.getElementById('error');
-  if (msg) { msg.classList.add('info'); msg.textContent = 'Ouverture depuis le portail…'; }
   api.post('/portail', { ticket }).then((res) => {
     localStorage.setItem('userName', res.name || '');
     localStorage.setItem('viaPortail', '1');
+    try { sessionStorage.removeItem(CLE_ROUVRIR); } catch {}
     location.replace('/dashboard.html');
-  }).catch((err) => {
-    if (msg) { msg.classList.remove('info'); msg.textContent = err.message === 'Non autorisé' ? 'Lien expiré. Repasse par le portail.' : (err.message || 'Entrée par le portail impossible'); }
+  }).catch(() => {
+    // La session déjà ouverte (cookie) n'est pas touchée par un ticket refusé.
+    let avant = 0;
+    try { avant = Number(sessionStorage.getItem(CLE_ROUVRIR)) || 0; } catch {}
+    if (Date.now() - avant < 2 * 60 * 1000) {
+      const attente = document.getElementById('entreeAttente');
+      if (attente) {
+        attente.textContent = 'L\u2019ouverture n\u2019a pas marché.';
+        const retour = document.createElement('a');
+        retour.className = 'btn dark';
+        retour.href = PORTAIL;
+        retour.textContent = '← Retour au portail';
+        attente.append(document.createElement('br'), retour);
+      }
+      return;
+    }
+    try { sessionStorage.setItem(CLE_ROUVRIR, String(Date.now())); } catch {}
+    location.replace(`${PORTAIL}/?rouvrir=${MODULE}`);
   });
 } else {
   // Déjà connecté ? -> dashboard (replace : le retour du téléphone ne repasse pas par cette page)

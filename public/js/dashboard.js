@@ -1,4 +1,4 @@
-import { api, forgetOfflineIdentity, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
+import { api, forgetOfflineIdentity, pageDeSortie, toast, fmtDate, escapeHtml, getOptionName } from '/js/api.js';
 
 // Auth + nom
 api.get('/me').then(u => {
@@ -6,7 +6,7 @@ api.get('/me').then(u => {
   // entré par le portail Instant : le retour au portail est proposé dans l'en-tête
   if (u.portail) document.getElementById('versPortail').hidden = false;
 }).catch(error => {
-  if ((error.status && error.status < 500) || !api.offlineIdentity()) location.href = '/';
+  if ((error.status && error.status < 500) || !api.offlineIdentity()) location.href = pageDeSortie();
 });
 
 const listEl = document.getElementById('list');

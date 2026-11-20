@@ -630,3 +630,9 @@ details.section { border-radius: 16px; background: #fff; }
 /* passerelle vers Fumisterie, dans le bloc conduit */
 .pont-fumisterie { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
 .pont-fumisterie .btn { border-color: var(--or); color: var(--primary-2); font-weight: 600; }
+
+/* entrée par le portail (#ticket=…) : jamais l'écran du code, seulement « Ouverture… » */
+.entree-attente { display: none; text-align: center; color: var(--muted); font-size: 15px; }
+html.entree-portail .login-card { display: none; }
+html.entree-portail .entree-attente { display: block; }
+.entree-attente .btn { display: inline-block; margin-top: 14px; }

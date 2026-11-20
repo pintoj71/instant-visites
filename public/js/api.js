@@ -15,6 +15,13 @@ export function forgetOfflineIdentity() {
   try { localStorage.removeItem(OFFLINE_IDENTITY); } catch {}
 }
 
+// Où aller quand la session n'est plus valable : entré par le portail → retour au portail
+// (accès retiré ou session finie), jamais l'écran du code ; entré au code → page de connexion.
+export function pageDeSortie() {
+  try { if (localStorage.getItem('viaPortail') === '1') return 'https://app.instantbypinto.fr'; } catch {}
+  return '/';
+}
+
 // Wrapper minimal pour les appels à /api/*
 export const api = {
   async req(path, options = {}) {
@@ -30,7 +37,7 @@ export const api = {
       if (res.status === 401) {
         forgetOfflineIdentity();
         if (location.pathname !== '/' && location.pathname !== '/index.html') {
-          location.href = '/';
+          location.href = pageDeSortie();
         }
         throw Object.assign(new Error('Non autorisé'), { status: 401 });
       }
